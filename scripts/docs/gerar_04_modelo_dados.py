@@ -2,25 +2,23 @@
 # gerar_04_modelo_dados.py
 # ============================================================
 
-from scripts.docs._base import escrever, rodar_sozinho
+import os
+import sys
 
+# Adiciona a raiz do projeto ao sys.path (funciona de qualquer pasta)
+_RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _RAIZ not in sys.path:
+    sys.path.insert(0, _RAIZ)
 
-CONTEUDO = """# 04 — Modelo de Dados
-
-> ⚠️ **Documento em construção.**
-> Será preenchido com o schema SQLite completo na Fase 1 do roadmap.
-
----
-
-**Versão:** 2.0
-**Público-alvo:** Desenvolvedores, DBAs
-
-(conteúdo a ser preenchido)
-"""
+from scripts.docs._base import gerar_de_template, rodar_sozinho
 
 
 def gerar(forcar=False):
-    return escrever('04_MODELO_DADOS', CONTEUDO, forcar=forcar)
+    return gerar_de_template(
+        '04_modelo_dados.md',
+        '04_MODELO_DADOS',
+        forcar=forcar
+    )
 
 
 if __name__ == '__main__':
