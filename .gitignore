@@ -1,0 +1,3 @@
+dados/backup/
+dados/*.db
+dados/logs/*.log
