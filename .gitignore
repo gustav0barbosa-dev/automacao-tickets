@@ -1,3 +1,5 @@
 dados/backup/
 dados/*.db
 dados/logs/*.log
+# Dados de exploração (podem conter dados sensíveis)
+dados/exploracao/

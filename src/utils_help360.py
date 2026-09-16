@@ -131,56 +131,101 @@ def filtrar_categoria(df, categorias=CATEGORIAS_FORA):
 
 # ==================== NAVEGADOR CHROME ====================
 def criar_navegador(headless=False):
-    """
-    Cria e inicializa uma instância do Chrome WebDriver.
-
-    Args:
-        headless (bool): Se True, executa em modo headless (sem interface gráfica)
-    """
     options = Options()
 
-    # Configurações para evitar detecção de automação
+    # Anti-detecção
     options.add_argument('--disable-blink-features=AutomationControlled')
     options.add_experimental_option('excludeSwitches', ['enable-automation'])
     options.add_experimental_option('useAutomationExtension', False)
 
-    # Configurações de download - aponta para ~/Downloads
-    # (mesma pasta onde o Programa2 procura por 'tickets.xlsx')
+    # User-Agent real do Chrome (sem "HeadlessChrome")
+    options.add_argument(
+        'user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/153.0.0.0 Safari/537.36'
+    )
+
+    # Remove flags que denunciam automação
+    options.add_argument('--disable-infobars')
+    options.add_argument('--no-first-run')
+    options.add_argument('--no-default-browser-check')
+    options.add_argument('--disable-extensions')
+    options.add_argument('--disable-popup-blocking')
+    options.add_argument('--disable-notifications')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--lang=pt-BR')
+
+    # Preferências de download
     prefs = {
         'download.default_directory': os.path.join(os.path.expanduser('~'), 'Downloads'),
         'download.prompt_for_download': False,
         'download.directory_upgrade': True,
-        'safebrowsing.enabled': True
+        'safebrowsing.enabled': True,
+        'credentials_enable_service': False,
+        'profile.password_manager_enabled': False,
     }
     options.add_experimental_option('prefs', prefs)
 
     if headless:
-        options.add_argument('--headless')
+        options.add_argument('--headless=new')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
 
     servico = Service(ChromeDriverManager().install())
     navegador = webdriver.Chrome(service=servico, options=options)
     navegador.maximize_window()
+
+    # Remove navigator.webdriver via CDP (elimina detecção)
+    try:
+        navegador.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
+            'source': '''
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+                window.chrome = { runtime: {} };
+                Object.defineProperty(navigator, 'languages', {
+                    get: () => ['pt-BR', 'pt', 'en']
+                });
+                Object.defineProperty(navigator, 'plugins', {
+                    get: () => [1, 2, 3, 4, 5]
+                });
+            '''
+        })
+    except Exception:
+        pass
+
     return navegador
 
 
-def realizar_login(navegador, usuario='mmarcondes@sp.gov.br', senha=None):
-    """Realiza login no sistema Help360."""
-    if not senha:
-        senha = getpass('Digite sua senha: ')
+def realizar_login(navegador, usuario=None, senha=None):
+    if not usuario:
+        import getpass as _gp
+        usuario = input('Digite seu email (@sp.gov.br): ').strip()
+        if not usuario:
+            usuario = 'mmarcondes@sp.gov.br'
 
     url_help = 'https://spprev.help360.com.br/users/sign_in'
     navegador.get(url_help)
     time.sleep(2)
 
-    # Preenche email e senha
     navegador.find_element(By.XPATH, '//*[@id="user_email"]').send_keys(usuario)
     navegador.find_element(By.XPATH, '//*[@id="user_password"]').send_keys(senha)
-
-    # Clica no botão de login
     navegador.find_element(By.XPATH, '//*[@id="new_user"]/input[3]').click()
-    time.sleep(3)
+
+    # Aguarda redirecionar para a home
+    for _ in range(10):
+        time.sleep(1)
+        if 'sign_in' not in navegador.current_url.lower():
+            break
+
+    # Aquece a sessão: navega para a home e para a lista de tickets
+    try:
+        navegador.get('https://spprev.help360.com.br/')
+        time.sleep(2)
+        navegador.get('https://spprev.help360.com.br/tickets')
+        time.sleep(2)
+    except Exception:
+        pass
 
 
 # ==================== PROTEÇÃO DE DADOS (LGPD) ====================

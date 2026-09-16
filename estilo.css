@@ -1,0 +1,122 @@
+/* ============================================
+   Help360 Dashboard — Tema visual
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,600&family=Inter:wght@400;500;600&display=swap');
+
+/* Base */
+html, body, [class*="css"] {
+    font-family: 'Inter', -apple-system, sans-serif;
+}
+
+/* Títulos com Fraunces */
+h1 {
+    font-family: 'Fraunces', serif !important;
+    font-weight: 300 !important;
+    font-size: 28px !important;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: #eae7e1 !important;
+}
+h2, h3 {
+    font-family: 'Fraunces', serif !important;
+    color: #eae7e1 !important;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background: #0c0e13 !important;
+    border-right: 1px solid rgba(255,255,255,.07);
+}
+
+/* Esconde menu Streamlit */
+#MainMenu, footer, [data-testid="stToolbar"] {
+    visibility: hidden;
+}
+
+/* KPIs (st.metric) */
+[data-testid="stMetric"] {
+    background: #1b2029;
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 10px;
+    padding: 16px 18px;
+}
+[data-testid="stMetricLabel"] {
+    color: #9299a6 !important;
+    font-size: 12px !important;
+}
+[data-testid="stMetricValue"] {
+    font-family: 'Fraunces', serif !important;
+    font-weight: 600 !important;
+    color: #eae7e1 !important;
+    font-size: 26px !important;
+}
+
+/* Tabelas */
+[data-testid="stDataFrame"] {
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 10px;
+}
+
+/* Callouts (st.info / st.warning) */
+[data-testid="stAlert"] {
+    border-radius: 6px;
+    border-left-width: 3px !important;
+}
+
+/* ============================================
+   NAVEGAÇÃO — estilo profissional
+   ============================================ */
+
+/* Container do radio */
+[data-testid="stSidebar"] [role="radiogroup"] {
+    gap: 2px;
+    padding: 0;
+}
+
+/* Cada item do menu */
+[data-testid="stSidebar"] [role="radiogroup"] > label {
+    display: flex;
+    align-items: center;
+    padding: 11px 14px !important;
+    border-radius: 6px;
+    border-left: 3px solid transparent;
+    font-size: 13.5px;
+    color: #9299a6 !important;
+    cursor: pointer;
+    transition: all .15s ease;
+    margin: 0 !important;
+    background: transparent;
+}
+
+/* Hover */
+[data-testid="stSidebar"] [role="radiogroup"] > label:hover {
+    background: rgba(255,255,255,.03);
+    color: #eae7e1 !important;
+}
+
+/* Item ativo */
+[data-testid="stSidebar"] [role="radiogroup"] > label:has(input:checked) {
+    background: rgba(255,255,255,.05);
+    border-left-color: #c9a666;
+    color: #eae7e1 !important;
+    font-weight: 600;
+}
+
+/* Esconde a bolinha do radio */
+[data-testid="stSidebar"] [role="radiogroup"] > label > div:first-child {
+    display: none !important;
+}
+
+/* Remove gaps internos do label */
+[data-testid="stSidebar"] [role="radiogroup"] > label > div {
+    gap: 0 !important;
+}
+
+/* Texto dentro do label */
+[data-testid="stSidebar"] [role="radiogroup"] > label p {
+    color: inherit !important;
+    font-size: 13.5px !important;
+    margin: 0 !important;
+    font-weight: inherit !important;
+}
