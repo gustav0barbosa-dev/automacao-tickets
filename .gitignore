@@ -1,5 +1,12 @@
-dados/backup/
+# Dados sensíveis (nunca commitar)
 dados/*.db
-dados/logs/*.log
-# Dados de exploração (podem conter dados sensíveis)
+dados/*.xlsx
+dados/*.xls
+dados/backup/
+dados/historicos/
 dados/exploracao/
+dados/logs/*.log
+
+# Migrations e scripts SÃO commitados
+!dados/migrations/
+!scripts/
