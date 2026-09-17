@@ -181,14 +181,14 @@ def extrair_detalhes(navegador):
         'responsavel':   'Responsável',
         'previsao':      'Previsão para solução',
         'categoria':     'Categoria',
-        'empresa':       'Empresa',
+        'empresa':       'Empresa',              
         'prioridade':    'Prioridade',
         'solicitante':   'Solicitante',
         'status':        'Status',
-        'area':          'Área',
-        'sistema':       'Sistema',
-        'solucao':       'Solução',
-        'classificacao': 'Classificação',
+        'area':          'Área',                 
+        'sistema':       'Sistema',              
+        'solucao':       'Solução',              
+        'classificacao': 'Classificação',        
     }
     return {k: extrair_campo(navegador, v) for k, v in mapa.items()}
 
@@ -341,6 +341,7 @@ def persistir_mensagens(conn, ticket_id, mensagens):
 
 # ==================== ATUALIZAÇÃO DE TICKET ====================
 def atualizar_ticket(conn, ticket_id, detalhes):
+    """Atualiza os campos do ticket, incluindo os novos (classificacao, area, etc)."""
     prev = parsear_data_br(detalhes.get('previsao'))
     prev_str = prev.strftime('%Y-%m-%d %H:%M:%S') if prev is not None else None
 
@@ -354,14 +355,31 @@ def atualizar_ticket(conn, ticket_id, detalhes):
             responsavel_atual = COALESCE(?, responsavel_atual),
             solicitante       = COALESCE(?, solicitante),
             previsao          = COALESCE(?, previsao),
+            classificacao     = COALESCE(?, classificacao),
+            area              = COALESCE(?, area),
+            empresa           = COALESCE(?, empresa),
+            solucao           = COALESCE(?, solucao),
+            sistema           = COALESCE(?, sistema),
+            backlog           = COALESCE(?, backlog),         -- ← NOVO
             enriquecido       = 1,
             atualizado_em     = CURRENT_TIMESTAMP
         WHERE id = ?
     ''', (
-        detalhes.get('titulo'), detalhes.get('descricao'),
-        detalhes.get('categoria'), detalhes.get('status'),
-        detalhes.get('prioridade'), detalhes.get('responsavel'),
-        detalhes.get('solicitante'), prev_str, ticket_id,
+        detalhes.get('titulo'),
+        detalhes.get('descricao'),
+        detalhes.get('categoria'),
+        detalhes.get('status'),
+        detalhes.get('prioridade'),
+        detalhes.get('responsavel'),
+        detalhes.get('solicitante'),
+        prev_str,
+        detalhes.get('classificacao'),
+        detalhes.get('area'),
+        detalhes.get('empresa'),
+        detalhes.get('solucao'),
+        detalhes.get('sistema'),
+        detalhes.get('backlog', 0),                                # ← NOVO
+        ticket_id,
     ))
     conn.commit()
 
@@ -379,6 +397,12 @@ def processar_ticket(navegador, conn, ticket_id):
         detalhes = extrair_detalhes(navegador)
         if not detalhes.get('titulo'):
             return (False, 0, 0, 'sem título')
+
+        # ---------- NOVO: detecta backlog ----------
+        eh_backlog = detectar_backlog(navegador)
+
+        # Adiciona ao dicionário de detalhes
+        detalhes['backlog'] = 1 if eh_backlog else 0
 
         atualizar_ticket(conn, ticket_id, detalhes)
 
@@ -400,6 +424,36 @@ def processar_ticket(navegador, conn, ticket_id):
     except Exception as e:
         return (False, 0, 0, f'exceção: {type(e).__name__}')
 
+# ==================== detecta backlogs ====================
+def detectar_backlog(navegador):
+    """
+    Detecta se o ticket possui a mensagem 'Este ticket se tornou um Backlog'
+    ou variações.
+
+    Retorna:
+        True se for backlog, False caso contrário
+    """
+    try:
+        # Busca em todo o HTML/texto visível
+        page_text = navegador.find_element(By.TAG_NAME, 'body').text
+
+        # Palavras-chave que indicam backlog
+        keywords = [
+            'se tornou um backlog',
+            'se tornou backlog',
+            'em backlog',
+            'aguardando backlog',
+            'ticket backlog',
+        ]
+
+        page_lower = page_text.lower()
+        for kw in keywords:
+            if kw in page_lower:
+                return True
+
+        return False
+    except Exception:
+        return False
 
 # ==================== MAIN ====================
 def main():
