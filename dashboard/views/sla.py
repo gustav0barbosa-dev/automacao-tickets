@@ -157,6 +157,132 @@ def render(df):
                 f'SLA global em <b>{perc:.1f}%</b> — abaixo da meta recomendada (95%).')
 
     separador()
+
+    # ==================== SLA POR CRITICIDADE ====================
+    painel_title('SLA por <b>Criticidade</b>')
+    st.markdown('<div class="page-caption" style="margin-top:-14px;">'
+                'Prazo ideal por criticidade: Urgente=3d, Alta=5d, '
+                'Média=10d, Baixa=15d (dias úteis)'
+                '</div>',
+                unsafe_allow_html=True)
+
+    # Verifica se a coluna existe
+    if 'sla_criticidade_ok' not in df.columns:
+        callout('info', 'Info',
+                'Sem cálculo de criticidade. Rode '
+                '`python scripts/analisar_sla_criticidade.py`.')
+    else:
+        df_crit = df[df['sla_criticidade_ok'].notna()].copy()
+
+        if df_crit.empty:
+            callout('info', 'Info',
+                    'Sem tickets resolvidos com prazo definido.')
+        else:
+            # ---------- KPIs ----------
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                total_crit = len(df_crit)
+                kpi('Total com Criticidade', f'{total_crit}')
+
+            with col2:
+                cumpridos = (df_crit['sla_criticidade_ok'] == 1).sum()
+                perc = (cumpridos / total_crit * 100) if total_crit else 0
+                kpi('% Cumprido', f'{perc:.1f}%',
+                    pill=f'{cumpridos} tickets',
+                    pill_tipo='positive' if perc >= 80 else 'negative')
+
+            with col3:
+                media_dias = df_crit['dias_uteis_resolucao'].mean()
+                kpi('Média Dias Úteis', f'{media_dias:.1f}d')
+
+            st.markdown('')
+
+            # ---------- Gráficos ----------
+            col_a, col_b = st.columns(2)
+
+            with col_a:
+                painel_title('Cumprimento por <b>Criticidade</b>')
+
+                agg = df_crit.groupby('prioridade').agg(
+                    total=('id', 'count'),
+                    ok=('sla_criticidade_ok', 'sum'),
+                ).reset_index()
+                agg['perc'] = (agg['ok'] / agg['total'] * 100).round(1)
+
+                # Ordem customizada
+                ordem = ['Urgente', 'Alta', 'Média', 'Média 1', 'Média 2',
+                         'Média-1', 'Média-2', 'Baixa', 'Baixa 1', 'Baixa 2',
+                         'Baixa-1', 'Baixa-2', 'Baixa-3']
+                agg['ordem'] = agg['prioridade'].map(
+                    {p: i for i, p in enumerate(ordem)}
+                ).fillna(99)
+                agg = agg.sort_values('ordem')
+
+                hbar_list([
+                    {'label': r['prioridade'],
+                     'value': float(r['perc']),
+                     'formatted': f'{r["perc"]:.1f}% ({int(r["ok"])}/{int(r["total"])})',
+                     'accent': r['perc'] < 80}
+                    for _, r in agg.iterrows()
+                ])
+
+            with col_b:
+                painel_title('Média de <b>Dias Úteis</b> até Resolução')
+
+                media_dias_prio = df_crit.groupby('prioridade')[
+                    'dias_uteis_resolucao'
+                ].mean().reset_index()
+
+                media_dias_prio['ordem'] = media_dias_prio['prioridade'].map(
+                    {p: i for i, p in enumerate(ordem)}
+                ).fillna(99)
+                media_dias_prio = media_dias_prio.sort_values('ordem').dropna()
+
+                # Mapeia prazo ideal
+                prazo_ideal = {
+                    'Urgente': 3, 'Alta': 5,
+                    'Média': 10, 'Média 1': 10, 'Média 2': 10,
+                    'Média-1': 10, 'Média-2': 10,
+                    'Baixa': 15, 'Baixa 1': 15, 'Baixa 2': 15,
+                    'Baixa-1': 15, 'Baixa-2': 15, 'Baixa-3': 15,
+                }
+
+                if not media_dias_prio.empty:
+                    hbar_list([
+                        {'label': f'{r["prioridade"]} (ideal: {prazo_ideal.get(r["prioridade"], "?")}d)',
+                         'value': float(r['dias_uteis_resolucao']),
+                         'formatted': f'{r["dias_uteis_resolucao"]:.1f}d',
+                         'accent': r['dias_uteis_resolucao'] > prazo_ideal.get(r['prioridade'], 99)}
+                        for _, r in media_dias_prio.iterrows()
+                    ])
+
+            # ---------- Insights ----------
+            st.markdown('')
+
+            if not agg.empty:
+                pior = agg.iloc[0]
+                melhor = agg.iloc[-1]
+
+                if pior['perc'] < 70:
+                    callout('warning', 'Atenção',
+                            f'Criticidade <b>{pior["prioridade"]}</b> tem apenas '
+                            f'<b>{pior["perc"]:.1f}%</b> de SLA cumprido '
+                            f'({int(pior["ok"])}/{int(pior["total"])} tickets).')
+
+                # Urgente abaixo de 90%
+                urgente = agg[agg['prioridade'] == 'Urgente']
+                if not urgente.empty and urgente.iloc[0]['perc'] < 90:
+                    callout('warning', 'Crítico',
+                            f'Tickets <b>Urgente</b> estão em '
+                            f'<b>{urgente.iloc[0]["perc"]:.1f}%</b> — '
+                            f'deveria ser próximo de 100%.')
+
+                callout('info', 'Insight',
+                        f'Melhor desempenho: <b>{melhor["prioridade"]}</b> '
+                        f'({melhor["perc"]:.1f}%).')
+
+    separador()
     
     col_esq, col_dir = st.columns([4, 1])
     with col_dir:
