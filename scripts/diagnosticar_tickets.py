@@ -1,10 +1,11 @@
 # ============================================================
-# diagnosticar_tickets.py (v2 — corrigido)
+# diagnosticar_tickets.py (v3 — trata tickets sem movimentação)
 # ============================================================
 """
 Aplica a matriz de verdade (12 cenários) para classificar cada
-ticket cruzando com a tabela `analistas` para saber se
-responsável e alterador são SPPREV ou Atlantic.
+ticket cruzando com a tabela `analistas`.
+
+Tickets sem movimentação recebem o diagnóstico `SEM_DADOS`.
 """
 
 import sqlite3
@@ -28,12 +29,13 @@ def main():
 
     print(f'📊 {len(mapa_empresa)} analistas no mapa')
 
-    # ---------- Busca dados ----------
+    # ---------- Busca tickets ----------
     df = pd.read_sql('''
         SELECT id, solicitante, responsavel_atual, status
         FROM tickets
     ''', conn)
 
+    # ---------- Busca última movimentação por ticket ----------
     df_movs = pd.read_sql('''
         SELECT ticket_id, autor, data_movimentacao
         FROM movimentacoes
@@ -43,14 +45,24 @@ def main():
 
     df_movs_ultimo = df_movs.drop_duplicates('ticket_id', keep='first')
 
+    # ---------- Merge ----------
     df = df.merge(
-        df_movs_ultimo[['ticket_id', 'autor']],
+        df_movs_ultimo[['ticket_id', 'autor', 'data_movimentacao']],
         left_on='id', right_on='ticket_id', how='left'
     )
-    df = df.rename(columns={'autor': 'alterado_por'})
+    df = df.rename(columns={
+        'autor': 'alterado_por',
+        'data_movimentacao': 'ultima_mov_data',
+    })
     df = df.drop(columns=['ticket_id'])
 
     print(f'📊 Processando {len(df)} tickets...')
+
+    # Estatística de cobertura
+    com_movs = df['alterado_por'].notna().sum()
+    sem_movs = len(df) - com_movs
+    print(f'   Com movimentação: {com_movs}')
+    print(f'   Sem movimentação: {sem_movs}')
 
     # ---------- Classificação ----------
     def classificar(row):
@@ -58,11 +70,16 @@ def main():
         alt = row['alterado_por']
         status = row['status']
 
-        # Busca empresa no mapa; default Externo
+        pendente_usuario = (status == 'Aguardando confirmação do usuário')
+
+        # SEM DADOS: sem movimentação enriquecida
+        if pd.isna(alt):
+            return (None, int(pendente_usuario), 'SEM_DADOS')
+
+        # Busca empresa no mapa
         resp_emp = mapa_empresa.get(resp, 'Externo') if pd.notna(resp) else 'Externo'
         alt_emp = mapa_empresa.get(alt, 'Externo') if pd.notna(alt) else 'Externo'
 
-        # Normaliza: SPPREV / Atlantic / Outro / Externo
         def tipo(e):
             if e == 'SPPREV':
                 return 'SPPREV'
@@ -73,12 +90,9 @@ def main():
         resp_t = tipo(resp_emp)
         alt_t = tipo(alt_emp)
 
-        acao_interna = (resp == alt) if pd.notna(resp) and pd.notna(alt) else False
-        pendente_usuario = (status == 'Aguardando confirmação do usuário')
+        acao_interna = (resp == alt)
 
-        # ---------- Matriz de verdade ----------
-        # CEN-01..06: responsável SPPREV
-        # CEN-07..12: responsável Atlantic
+        # Matriz de verdade
         if resp_t == 'SPPREV':
             if pendente_usuario and alt_t == 'SPPREV':
                 diag = 'CEN-01'
@@ -112,21 +126,22 @@ def main():
         else:
             diag = 'OUTRO'
 
-        return acao_interna, pendente_usuario, diag
+        return (int(acao_interna), int(pendente_usuario), diag)
 
+    # ---------- Aplica ----------
     resultados = []
     for _, row in df.iterrows():
         acao, pend, diag = classificar(row)
         resultados.append({
             'id': row['id'],
-            'acao_interna': int(acao),
-            'pendente_usuario': int(pend),
+            'acao_interna': acao,       # None = não processado
+            'pendente_usuario': pend,
             'diagnostico': diag,
         })
 
     df_res = pd.DataFrame(resultados)
 
-    # ---------- Atualiza em lote ----------
+    # ---------- Atualiza banco ----------
     print('💾 Atualizando banco...')
     conn.executemany('''
         UPDATE tickets
@@ -144,18 +159,23 @@ def main():
     print('DISTRIBUIÇÃO DOS CENÁRIOS')
     print('=' * 60)
     for diag, qtd in df_res['diagnostico'].value_counts().sort_index().items():
-        print(f'   {diag:<10} {qtd:>6}')
+        print(f'   {diag:<12} {qtd:>6}')
 
     print()
     print('=' * 60)
     print('RESUMO')
     print('=' * 60)
     total = len(df_res)
-    internos = df_res['acao_interna'].sum()
+    internos = (df_res['acao_interna'] == 1).sum()
+    externos = (df_res['acao_interna'] == 0).sum()
+    sem_dados = (df_res['acao_interna'].isna()).sum()
     pendentes = df_res['pendente_usuario'].sum()
-    print(f'   Total processado            : {total}')
-    print(f'   Com ação interna (resp=mex) : {internos} ({internos/total*100:.1f}%)')
-    print(f'   Pendentes com usuário       : {pendentes} ({pendentes/total*100:.1f}%)')
+
+    print(f'   Total processado             : {total}')
+    print(f'   Com ação interna (resp=mex)  : {internos} ({internos/total*100:.1f}%)')
+    print(f'   Com ação externa (resp≠mex)  : {externos} ({externos/total*100:.1f}%)')
+    print(f'   Sem dados (não enriquecidos) : {sem_dados} ({sem_dados/total*100:.1f}%)')
+    print(f'   Pendentes com usuário        : {pendentes} ({pendentes/total*100:.1f}%)')
 
     conn.close()
 
