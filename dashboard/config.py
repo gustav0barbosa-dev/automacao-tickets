@@ -28,7 +28,8 @@ MENU_PAGINAS = [
     'Backlog',
     'Roteamento',
     'Reincidência',
-    'Diagnóstico',   # ← NOVO
+    'Diagnóstico',   
+    'Tendências',
 ]
 
 # ==================== STATUS ====================
