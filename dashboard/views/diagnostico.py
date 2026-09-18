@@ -9,6 +9,7 @@ import streamlit as st
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
+    botao_exportar,
 )
 from config import COR_SUCCESS, COR_DANGER, COR_WARNING, STATUS_FECHADOS
 
@@ -340,3 +341,9 @@ def render(df):
         callout('warning', 'Atenção',
                 f'Apenas <b>{com_diag} de {total}</b> tickets foram '
                 f'diagnosticados. Rode o Programa5 em mais dias para melhorar a cobertura.')
+
+    separador()
+    
+    col_esq, col_dir = st.columns([4, 1])
+    with col_dir:
+        botao_exportar(df_diag, 'diagnostico', key='export_diagnostico')

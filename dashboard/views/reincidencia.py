@@ -8,6 +8,7 @@ import pandas as pd
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title,
+    botao_exportar,
 )
 
 
@@ -194,3 +195,9 @@ def render(df):
                 f'<b>{int(top1["Total"])} tickets</b> '
                 f'em {int(top1["Categorias"])} categoria(s) — analisar caso a caso.'
             )
+
+    separador()
+    
+    col_esq, col_dir = st.columns([4, 1])
+    with col_dir:
+        botao_exportar(agg, 'reincidencia', key='export_reincidencia')

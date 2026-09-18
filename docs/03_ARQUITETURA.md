@@ -1,16 +1,15 @@
 # 03 — Arquitetura
 
 **Documento:** Arquitetura de Software (SDD)
-**Versão:** 2.0
+**Versão:** 3.0
+**Última atualização:** Setembro/2026
 **Público-alvo:** Desenvolvedores, arquitetos, DevOps
 
 ---
 
 ## 1. Visão Geral
 
-A Automação Help360 é organizada em **duas camadas independentes**, comunicando-se
-via **arquivos** e **banco de dados**:
-
+A Automação Help360 evoluiu para **três camadas** com responsabilidades distintas:
 ┌──────────────────────────────────────────────────────────────────┐
 │ CAMADA 1 — COLETA │
 │ (Selenium + Pandas → Excel) │
@@ -18,53 +17,108 @@ via **arquivos** e **banco de dados**:
 │ Baixa, processa, filtra e abre tickets │
 └──────────────────────────────────────────────────────────────────┘
 │
-│ dados
 ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│ CAMADA 2 — ANÁLISE │
-│ (SQLite + Pandas + Streamlit) │
+│ CAMADA 2 — PERSISTÊNCIA E ENRIQUECIMENTO │
+│ (SQLite + Selenium) │
 │ │
-│ Persiste, enriquece, analisa, alerta e visualiza │
+│ Grava no banco, enriquece com movs + mensagens + backlog │
+└──────────────────────────────────────────────────────────────────┘
+│
+▼
+┌──────────────────────────────────────────────────────────────────┐
+│ CAMADA 3 — ANÁLISE │
+│ (SQL + Pandas + Streamlit) │
+│ │
+│ Aplica regras de negócio, diagnóstico e visualização │
 └──────────────────────────────────────────────────────────────────┘
 
-**Princípio:** cada camada é **independente**. A camada 2 pode rodar sozinha (com
-dados históricos), e a camada 1 continua funcionando mesmo se a 2 falhar.
+text
+
+**Princípio:** cada camada é **independente**. A camada 3 pode rodar sozinha (com dados históricos), e as camadas 1 e 2 continuam funcionando mesmo se a 3 falhar.
 
 ---
 
 ## 2. Diagrama de Blocos — Visão Completa
-
-┌──────────────────────────────────────────────────────────────────────────┐
+┌─────────────────────────────────────────────────────────────────────────┐
 │ ENTRADAS │
 │ │
-│ 📄 Tabela fato.xlsx 🌐 Site Help360 👤 Operador │
-│ (manual, operador) (5 anos de tickets) (credenciais) │
-└───────┬──────────────────────────────┬────────────────────────────┬──────┘
+│ 📄 Tabela fato.xlsx 🌐 Site Help360 📊 usuario_empresa.xlsx │
+│ (manual, operador) (5 anos de tickets) (lista de analistas) │
+└───────┬──────────────────────────┬────────────────────────┬──────────────┘
 │ │ │
 ▼ ▼ ▼
 ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
-│ PROGRAMA 0 │ │ PROGRAMA 1 │ │ PROGRAMA 2 │
-│ processa │ │ Selenium │ │ 6 filtros │
-│ Tabela fato │ │ download │ │ cruzamento │
+│ PROGRAMA 0 │ │ PROGRAMA 1 │ │ SCRIPT │
+│ processa │ │ Selenium │ │ carregar_ │
+│ Tabela fato │ │ download │ │ analistas │
 └───────┬───────┘ └───────┬───────┘ └───────┬───────┘
-│ │ ▲
-▼ ▼ │
-tickets_com_respondido.xlsx tickets.xlsx │
 │ │ │
-└──────────────┬───────────────┘ │
+▼ ▼ ▼
+tickets_com_respondido.xlsx tickets.xlsx tabela analistas
+│ │ │
+└──────────────┬───────────┘ │
+▼ │
+┌───────────────┐ │
+│ PROGRAMA 2 │ │
+│ 6 filtros │ │
+└───────┬───────┘ │
 │ │
-└──────────────────────────────────────────┘
+▼ │
+acompanhamento.xlsx │
+│ │
+▼ │
+┌───────────────┐ │
+│ PROGRAMA 3 │ │
+│ abre no │ │
+│ navegador │ │
+└───────────────┘ │
+│
+══════════════════════════════════════════════╪════════
+FIM DA CAMADA 1 │
+══════════════════════════════════════════════╪════════
+│
+┌───────────────┐ │
+│ PROGRAMA 4 │ │
+│ persiste em │ │
+│ SQLite │ │
+└───────┬───────┘ │
+│ │
+▼ │
+tickets.db │
+│ │
+▼ │
+┌───────────────┐ │
+│ PROGRAMA 5 │ │
+│ enriquece: │ │
+│ - movs │ │
+│ - msgs │ │
+│ - backlog │ │
+└───────┬───────┘ │
+│ │
+▼ │
+tickets.db ◄────────────────────────┘
+│
+═══════════════════════════════════════════════════════
+FIM DA CAMADA 2
+═══════════════════════════════════════════════════════
 │
 ▼
-acompanhamento.xlsx
+┌─────────────────────┐
+│ SCRIPTS ANÁLISE │
+│ - carregar_analistas
+│ - marcar_respondidos
+│ - marcar_empresa
+│ - diagnosticar │
+└─────────┬───────────┘
 │
 ▼
-┌───────────────┐
-│ PROGRAMA 3 │
-│ abre no │
-│ navegador │
-└───────────────┘
+┌─────────────────┐
+│ DASHBOARD │
+│ (8 páginas) │
+└─────────────────┘
 
+text
 
 ---
 
@@ -76,8 +130,6 @@ acompanhamento.xlsx
 
 **Stack:** Python + Selenium + Pandas + openpyxl
 
-**Programas:**
-
 | Programa | Entrada | Saída | Tipo |
 |---|---|---|---|
 | `programa0_preprocessar.py` | Tabela fato | `tickets_com_respondido.xlsx` | Batch |
@@ -85,91 +137,278 @@ acompanhamento.xlsx
 | `programa2_filtrar.py` | 2 arquivos Excel | `acompanhamento.xlsx` | Batch |
 | `programa3_abrir.py` | `acompanhamento.xlsx` | Abas no Chrome | Interativo |
 
-### 3.2 Camada 2 — Análise
+**Duração típica:** 5-15 minutos.
 
-**Responsabilidade:** persistir, enriquecer, analisar e visualizar.
+### 3.2 Camada 2 — Persistência e Enriquecimento
 
-**Stack:** Python + SQLite + Pandas + Streamlit
+**Responsabilidade:** gravar no banco e enriquecer com dados adicionais.
+
+**Stack:** Python + SQLite + Selenium + Pandas
 
 | Programa | Entrada | Saída | Tipo |
 |---|---|---|---|
-| `programa4_persistir.py` | `acompanhamento.xlsx` | SQLite | Batch |
-| `programa5_enriquecer.py` | SQLite + site | SQLite | Batch |
-| `programa6_analises.py` | SQLite | Relatórios | Batch |
-| `programa7_alertas.py` | SQLite | Emails | Batch |
-| `dashboard.py` | SQLite | Web app | Contínuo |
+| `programa4_persistir.py` | `tickets.xlsx` | SQLite (`tickets`) | Batch |
+| `programa5_enriquecer.py` | Site + SQLite | SQLite (`movimentacoes`, `mensagens`, `backlog`) | Batch |
+
+**Duração típica:** 5 minutos (persistir) + 30-60 min (enriquecer 100 dias).
+
+### 3.3 Camada 3 — Análise
+
+**Responsabilidade:** aplicar regras, gerar métricas e visualizar.
+
+**Stack:** Python + SQLite + Pandas + Streamlit
+
+| Script | Entrada | Saída | Tipo |
+|---|---|---|---|
+| `carregar_analistas.py` | `usuario_empresa.xlsx` | SQLite (`analistas`) | Batch |
+| `marcar_respondidos.py` | `tickets_com_respondido.xlsx` | SQLite (`respondido`) | Batch |
+| `marcar_empresa_responsavel.py` | SQLite | SQLite (`responsavel_empresa`) | Batch |
+| `diagnosticar_tickets.py` | SQLite | SQLite (`diagnostico`, `acao_interna`) | Batch |
+| `dashboard/app.py` | SQLite | Web app | Contínuo |
 
 ---
 
-## 4. Padrões Arquiteturais Adotados
+## 4. Componentes Arquiteturais
 
-| Padrão | Onde é aplicado | Motivo |
+### 4.1 Componente de Coleta (Selenium)
+┌────────────────────────────────────────┐
+│ Selenium WebDriver │
+│ │
+│ ┌──────────────┐ ┌──────────────┐ │
+│ │ Login │→ │ Navegação │ │
+│ └──────────────┘ └──────┬───────┘ │
+│ │ │
+│ ▼ │
+│ ┌──────────────┐ │
+│ │ Extração │ │
+│ │ (seletores) │ │
+│ └──────────────┘ │
+└────────────────────────────────────────┘
+
+text
+
+**Padrões:**
+- Page Object Model (POM) — cada página é uma classe
+- Esperas explícitas em vez de `sleep()`
+- Retry com backoff
+
+### 4.2 Componente de Persistência (SQLite)
+┌────────────────────────────────────────┐
+│ SQLite │
+│ │
+│ tickets.db │
+│ ├── tickets (28 colunas) │
+│ ├── movimentacoes │
+│ ├── mensagens │
+│ ├── analistas (10 colunas) │
+│ ├── areas │
+│ └── snapshots │
+│ │
+│ + Views (tempo_resposta, sla, nao_ret)│
+└────────────────────────────────────────┘
+
+text
+
+**Padrões:**
+- **Migrations** versionadas em `dados/migrations/*.sql`
+- **Idempotência** — `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN` com tratamento de erro
+- Índices em colunas de filtro
+
+### 4.3 Componente de Análise
+┌────────────────────────────────────────┐
+│ Camada 3 — Análises │
+│ │
+│ ┌────────────────────────────────┐ │
+│ │ Regras de Negócio │ │
+│ │ ├── Classificação de empresa │ │
+│ │ ├── Detecção de backlog │ │
+│ │ ├── Matriz de verdade │ │
+│ │ └── Tickets travados │ │
+│ └────────────────────────────────┘ │
+│ │
+│ ┌────────────────────────────────┐ │
+│ │ Métricas │ │
+│ │ ├── Tempo de resposta │ │
+│ │ ├── SLA │ │
+│ │ ├── Produtividade │ │
+│ │ └── Roteamento │ │
+│ └────────────────────────────────┘ │
+└────────────────────────────────────────┘
+
+text
+
+### 4.4 Componente de Visualização (Streamlit)
+dashboard/
+├── app.py # Entrada
+├── config.py # Constantes
+├── theme.py # CSS
+├── components.py # Componentes reutilizáveis
+├── data.py # Carregamento
+├── filters.py # Filtros sidebar
+└── views/ # 8 páginas
+├── visao_geral.py
+├── tempo_resposta.py
+├── sla.py
+├── produtividade.py
+├── backlog.py
+├── roteamento.py
+├── reincidencia.py
+└── diagnostico.py
+
+text
+
+**Padrões:**
+- **Modularização** — uma página por arquivo
+- **Cache** com `@st.cache_data(ttl=300)`
+- **Componentes HTML** customizados (kpi, hbar_list, callout)
+- **Sem CSS inline** — tudo em `theme.py`
+
+---
+
+## 5. Fluxos Detalhados
+
+### 5.1 Fluxo de Coleta (Camada 1)
+Operador atualiza Tabela fato
+↓
+
+Programa0 lê Tabela fato
+→ gera tickets_com_respondido.xlsx
+↓
+
+Programa1 faz login
+→ baixa tickets.xlsx
+↓
+
+Programa2 cruza os dois
+→ gera acompanhamento.xlsx
+↓
+
+Programa3 abre tickets no Chrome
+
+text
+
+### 5.2 Fluxo de Análise (Camadas 2 e 3)
+Programa4 lê tickets.xlsx
+→ persiste em SQLite
+↓
+
+Programa5 para cada ticket novo:
+→ abre ticket no Chrome
+→ raspa detalhes + backlog
+→ baixa histórico Excel
+→ extrai mensagens HTML
+→ persiste em movimentacoes/mensagens
+↓
+
+Carregar_analistas
+→ popula tabela analistas
+↓
+
+Marcar_respondidos
+→ preenche respondido
+↓
+
+Marcar_empresa_responsavel
+→ preenche responsavel_empresa
+↓
+
+Diagnosticar_tickets
+→ aplica matriz de verdade
+→ preenche diagnostico, acao_interna, pendente_usuario
+↓
+
+Dashboard
+→ visualização
+
+text
+
+---
+
+## 6. Padrões Arquiteturais Adotados
+
+| Padrão | Onde | Motivo |
 |---|---|---|
-| **Pipeline** | Toda a camada 1 | Processamento em etapas |
-| **Repository** | Acesso a SQLite | Isolar a lógica de persistência |
-| **Page Object Model** | Selenium | Manutenibilidade dos seletores |
-| **Idempotência** | Todos os scripts | Rodar 2x não quebra |
-| **Config externalizada** | `settings.yaml` | Não hardcodar parâmetros |
-| **Layered Architecture** | Camada 1 vs 2 | Separação de responsabilidades |
+| **Pipeline** | Toda a Camada 1 | Processamento em etapas |
+| **Layered** | 3 camadas | Separação de responsabilidades |
+| **Repository** | SQLite | Isolar persistência |
+| **Page Object Model** | Selenium | Manutenibilidade |
+| **Idempotência** | Migrations + scripts | Rodar 2x não quebra |
+| **Config externalizada** | `settings.yaml` | Não hardcodar |
+| **Modularização** | Dashboard | Fácil manutenção |
+| **Cache** | Streamlit | Performance |
 
 ---
 
-## 5. Decisões Arquiteturais (ADRs)
+## 7. Decisões Arquiteturais (ADRs)
 
-### ADR-001 — Uso de SQLite em vez de PostgreSQL
+### ADR-001 — SQLite em vez de PostgreSQL
 
 | Campo | Valor |
 |---|---|
-| **Contexto** | Precisamos de banco de dados para histórico |
-| **Decisão** | Usar SQLite (arquivo local) |
-| **Alternativas** | PostgreSQL, MySQL, MongoDB |
-| **Motivo** | Zero configuração, portabilidade, volume adequado |
-| **Consequências** | Sem acesso concorrente real; migração futura se necessário |
+| **Contexto** | Precisamos de banco para histórico |
+| **Decisão** | SQLite (arquivo local) |
+| **Motivo** | Zero configuração, volume adequado |
+| **Consequências** | Sem concorrência real; migração se crescer |
 
 ### ADR-002 — Enriquecimento sob demanda
 
 | Campo | Valor |
 |---|---|
 | **Contexto** | Raspar 10.000 tickets é caro |
-| **Decisão** | Raspar só os que mudaram desde o último snapshot |
-| **Alternativas** | Raspar tudo sempre; raspar em lotes fixos |
-| **Motivo** | Reduz tempo de 4h para 15min |
-| **Consequências** | Precisa controlar o que já foi raspado |
+| **Decisão** | Raspar só os que mudaram |
+| **Motivo** | Reduz tempo de 33h para 40min |
+| **Consequências** | Precisa controlar `enriquecido` |
 
 ### ADR-003 — Excel como transporte entre camadas
 
 | Campo | Valor |
 |---|---|
-| **Contexto** | Como passar dados entre programas da camada 1 |
+| **Contexto** | Como passar dados entre programas |
 | **Decisão** | Arquivos `.xlsx` |
-| **Alternativas** | Banco direto, JSON, Parquet |
-| **Motivo** | Compatível com o fluxo manual; inspecionável |
-| **Consequências** | Um pouco mais lento; limitação de 1M linhas por aba |
+| **Motivo** | Compatível com fluxo manual |
+| **Consequências** | Limitação de 1M linhas/aba |
 
 ### ADR-004 — Streamlit em vez de React
 
 | Campo | Valor |
 |---|---|
-| **Contexto** | Precisamos de dashboard web |
+| **Contexto** | Precisamos de dashboard |
 | **Decisão** | Streamlit (Python puro) |
-| **Alternativas** | React, Vue, Dash, Power BI |
-| **Motivo** | Curva de aprendizado baixa; reuso do Pandas |
-| **Consequências** | Menos customização; sem autenticação robusta nativa |
+| **Motivo** | Curva baixa; reuso do Pandas |
+| **Consequências** | Menos customização |
 
-### ADR-005 — Separação em camadas 1 e 2
+### ADR-005 — Migrations em SQL puro
 
 | Campo | Valor |
 |---|---|
-| **Contexto** | Fluxo único ficou grande demais |
-| **Decisão** | Separar em "coleta" (camada 1) e "análise" (camada 2) |
-| **Alternativas** | Um monolito; microserviços |
-| **Motivo** | Permite evoluir análise sem quebrar coleta |
-| **Consequências** | Precisa sincronizar entre camadas |
+| **Contexto** | Schema muda ao longo do tempo |
+| **Decisão** | Arquivos `.sql` versionados |
+| **Alternativas** | Alembic, Flyway |
+| **Motivo** | Simples; sem dependências |
+| **Consequências** | Sem versionamento automático |
+
+### ADR-006 — Dashboard modularizado
+
+| Campo | Valor |
+|---|---|
+| **Contexto** | `dashboard.py` monolítico (1000+ linhas) |
+| **Decisão** | 1 arquivo por página + componentes |
+| **Motivo** | Colaboração e manutenibilidade |
+| **Consequências** | Mais arquivos, mais imports |
+
+### ADR-007 — Matriz de verdade em SQL/Python
+
+| Campo | Valor |
+|---|---|
+| **Contexto** | 12 cenários a classificar |
+| **Decisão** | Python com função `classificar()` |
+| **Alternativas** | Tabela de-para em SQL |
+| **Motivo** | Flexibilidade; fácil ajustar |
+| **Consequências** | Não é declarativo |
 
 ---
 
-## 6. Diagrama de Implantação
-
+## 8. Diagrama de Implantação
 ┌───────────────────────────────────────────────┐
 │ Notebook/Desktop do Operador │
 │ (Windows 10/11) │
@@ -185,6 +424,7 @@ acompanhamento.xlsx
 │ │ ▼ ▼ │ │
 │ │ ┌───────────────────────────────┐ │ │
 │ │ │ SQLite (tickets.db) │ │ │
+│ │ │ ~50 MB │ │ │
 │ │ └───────────────────────────────┘ │ │
 │ └───────────────────────────────────────┘ │
 │ │
@@ -199,12 +439,77 @@ acompanhamento.xlsx
 │ Help360 (site) │
 └───────────────────┘
 
+text
 
 ---
 
-## 7. Referências
+## 9. Considerações de Escalabilidade
+
+### 9.1 Volume Atual
+
+| Recurso | Volume |
+|---|---|
+| Tickets | ~10.000 |
+| Movimentações | ~3.000 |
+| Mensagens | ~500 |
+| Analistas | ~410 |
+| Tamanho do banco | ~50 MB |
+
+### 9.2 Limites
+
+| Recurso | Limite | Ação |
+|---|---|---|
+| SQLite | ~1 TB | Migrar para Postgres |
+| Streamlit | ~10 usuários | Migrar para React |
+| Excel | 1M linhas/aba | Migrar para Parquet |
+
+### 9.3 Plano de Crescimento
+Fase 1-4: SQLite (atual)
+Fase 5-6: SQLite (aguenta)
+Fase 7+: Postgres (se > 500 MB)
+
+text
+
+---
+
+## 10. Considerações de Segurança
+
+| Aspecto | Medida |
+|---|---|
+| Credenciais | Variáveis de ambiente / `getpass` |
+| Dados sensíveis | Anonimização antes de logs |
+| Banco | Local, sem exposição em rede |
+| Dashboard | Restrito ao time |
+| Auditoria | Logs em `dados/logs/` |
+
+---
+
+## 11. Considerações de Testabilidade
+
+| Tipo | Ferramenta | Cobertura |
+|---|---|---|
+| Unitário | `pytest` | Funções puras |
+| Integração | `pytest` + SQLite em memória | Persistência |
+| E2E | `pytest` + Selenium | Fluxo completo |
+| Carga | `locust` | 10k tickets |
+
+---
+
+## 12. Considerações de Observabilidade
+
+| Aspecto | Implementação |
+|---|---|
+| Logs | `logging` em `dados/logs/` |
+| Métricas | Snapshot em `snapshots` |
+| Tracing | Timestamps entre etapas |
+| Alertas | Email para falhas críticas |
+
+---
+
+## 13. Referências
 
 - [02_Requisitos.md](02_REQUISITOS.md)
 - [04_Modelo_Dados.md](04_MODELO_DADOS.md)
 - [05_Regras_de_Negocio.md](05_REGRAS_DE_NEGOCIO.md)
+- [07_Interfaces.md](07_INTERFACES.md)
 - [11_Roadmap.md](11_ROADMAP.md)
