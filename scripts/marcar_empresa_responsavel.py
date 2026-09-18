@@ -93,7 +93,8 @@ def main():
         GROUP BY responsavel_empresa
         ORDER BY COUNT(*) DESC
     '''):
-        print(f'   {(row[0] or "(vazio)"):<15} {row[1]}')
+        nome = row[0] or '(vazio)'
+        print(f'   {nome:<20} {row[1]:>6}')
 
     conn.close()
 
