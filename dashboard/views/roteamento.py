@@ -9,6 +9,7 @@ import plotly.express as px
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
+    botao_exportar,
 )
 from config import COR_BAR, COR_DANGER, COR_TEXT_SEC, CAMINHO_BANCO
 
@@ -172,3 +173,9 @@ def render(df):
                 f'Média de <b>{media_msg:.1f} mensagens por ticket</b> — '
                 f'indica alto nível de comunicação/encaminhamento.'
             )
+
+    separador()
+    
+    col_esq, col_dir = st.columns([4, 1])
+    with col_dir:
+        botao_exportar(movs_ok, 'roteamento_movimentacoes', key='export_roteamento')

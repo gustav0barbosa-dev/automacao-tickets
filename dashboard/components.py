@@ -148,3 +148,43 @@ def aplicar_tema_plotly(fig, altura=320):
         linecolor=COR_GRID,
     )
     return fig
+
+# ==================== EXPORTAR ====================
+import io
+from datetime import datetime
+
+import pandas as pd
+
+
+def botao_exportar(df, nome_arquivo, key=None):
+    """
+    Renderiza um botão de download do DataFrame em Excel.
+
+    Args:
+        df: DataFrame a exportar
+        nome_arquivo: nome base (sem extensão)
+        key: chave única (Streamlit exige para múltiplos botões)
+    """
+    if df is None or df.empty:
+        return
+
+    # Cria buffer em memória
+    buffer = io.BytesIO()
+
+    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Dados')
+
+    buffer.seek(0)
+
+    # Nome com timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M')
+    nome_final = f'{nome_arquivo}_{timestamp}.xlsx'
+
+    st.download_button(
+        label='📥 Baixar Excel',
+        data=buffer.getvalue(),
+        file_name=nome_final,
+        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        key=key or f'export_{nome_arquivo}',
+        use_container_width=False,
+    )

@@ -9,6 +9,7 @@ import plotly.express as px
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
+    botao_exportar,
 )
 from config import COR_BAR, COR_DANGER, COR_TEXT_SEC
 
@@ -158,3 +159,9 @@ def render(df):
 
     if not algum_alerta:
         callout('success', 'OK', 'Nenhum alerta de sobrecarga identificado.')
+
+    separador()
+    
+    col_esq, col_dir = st.columns([4, 1])
+    with col_dir:
+        botao_exportar(agg, 'produtividade', key='export_produtividade')

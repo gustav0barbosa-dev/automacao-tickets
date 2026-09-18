@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 from components import (
     kpi, hbar_list, callout, painel_title,
     separador, page_header, aplicar_tema_plotly,
+    botao_exportar,
 )
 from config import COR_GOLD, COR_BAR
 
@@ -96,6 +97,7 @@ def render(df):
 
     separador()
 
+
     # ---------- Top categorias ----------
     painel_title('Tickets por <b>Categoria</b>')
     cc = df['categoria'].value_counts().head(10)
@@ -105,6 +107,8 @@ def render(df):
     ])
 
     separador()
+
+
     st.markdown('### Insights')
 
     if perc_sla >= 90:
@@ -128,3 +132,8 @@ def render(df):
     if esquecidos > 0:
         callout('warning', 'Atenção',
                 f'<b>{esquecidos} tickets</b> estão em aberto há mais de 30 dias.')
+
+    separador()
+    col_esq, col_dir = st.columns([4, 1])
+    with col_dir:
+        botao_exportar(df, 'visao_geral', key='export_visao_geral')

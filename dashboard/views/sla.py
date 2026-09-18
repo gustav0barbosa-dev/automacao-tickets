@@ -9,6 +9,7 @@ import plotly.express as px
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
+    botao_exportar,
 )
 from config import COR_SUCCESS, COR_DANGER
 
@@ -154,3 +155,9 @@ def render(df):
     else:
         callout('warning', 'Atenção',
                 f'SLA global em <b>{perc:.1f}%</b> — abaixo da meta recomendada (95%).')
+
+    separador()
+    
+    col_esq, col_dir = st.columns([4, 1])
+    with col_dir:
+        botao_exportar(df_sla, 'sla', key='export_sla')

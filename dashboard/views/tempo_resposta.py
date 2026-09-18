@@ -9,6 +9,7 @@ import plotly.express as px
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
+    botao_exportar,
 )
 from config import COR_BAR, COR_DANGER
 
@@ -137,3 +138,9 @@ def render(df):
             f'Prioridade <b>Crítica</b> está demorando mais que <b>Alta</b> '
             f'({crit[0]:.1f} vs {alta[0]:.1f} dias). Verifique a triagem.'
         )
+
+    separador()
+    
+    col_esq, col_dir = st.columns([4, 1])
+    with col_dir:
+        botao_exportar(df_res, 'tempo_resposta', key='export_tempo_resposta')

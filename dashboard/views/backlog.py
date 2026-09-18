@@ -9,6 +9,7 @@ import plotly.express as px
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
+    botao_exportar,
 )
 from config import COR_WARNING, COR_DANGER, STATUS_FECHADOS
 
@@ -182,3 +183,9 @@ def render(df):
                 f'<b>{top_resp}</b> tem <b>{top_qtd} tickets em aberto</b>. '
                 f'Considere redistribuir a carga.'
             )
+
+    separador()
+    
+    col_esq, col_dir = st.columns([4, 1])
+    with col_dir:
+        botao_exportar(df_aberto, 'backlog', key='export_backlog')
