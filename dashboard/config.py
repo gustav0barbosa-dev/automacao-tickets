@@ -1,10 +1,6 @@
 # ============================================================
 # dashboard/config.py — Constantes e configuração
 # ============================================================
-"""
-Configuração central: paths, cores, paleta, parâmetros.
-Alterar aqui = altera em todo o dashboard.
-"""
 
 from pathlib import Path
 
@@ -12,7 +8,7 @@ from pathlib import Path
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 CAMINHO_BANCO = RAIZ_PROJETO / 'dados' / 'tickets.db'
 
-# ==================== PALETA DE CORES ====================
+# ==================== PALETA ====================
 COR_GOLD = '#c9a666'
 COR_BAR = '#8b96a8'
 COR_SUCCESS = '#7fc99b'
@@ -23,9 +19,7 @@ COR_TEXT_SEC = '#9299a6'
 COR_TEXT_TER = '#5c6270'
 COR_GRID = 'rgba(255,255,255,.05)'
 
-# ==================== MENU DE NAVEGAÇÃO ====================
-# Adicionar nova página aqui é o único passo necessário
-# (a função `render` da página precisa existir em pages/)
+# ==================== MENU ====================
 MENU_PAGINAS = [
     'Visão Geral',
     'Tempo de Resposta',
@@ -34,7 +28,8 @@ MENU_PAGINAS = [
     'Backlog',
     'Roteamento',
     'Reincidência',
+    'Diagnóstico',   # ← NOVO
 ]
 
-# ==================== STATUS PADRÃO ====================
+# ==================== STATUS ====================
 STATUS_FECHADOS = ['Resolvido', 'Fechado', 'Cancelado', 'Duplicado']
