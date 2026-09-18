@@ -1,24 +1,17 @@
 # 05 — Regras de Negócio
 
 **Documento:** Regras do Domínio Help360
-**Versão:** 2.0
-**Público-alvo:** Desenvolvedores, QA, Product Owner
+**Versão:** 3.0
+**Última atualização:** Setembro/2026
+**Público-alvo:** Desenvolvedores, QA, Product Owner, Supervisores
 
 ---
 
 ## 1. Introdução
 
-Este documento define **todas as regras de negócio** aplicadas pelo sistema,
-independente de implementação. Serve como **fonte da verdade** para:
+Este documento define **todas as regras de negócio** aplicadas pelo sistema. É a **fonte da verdade** para implementação, testes e validação.
 
-- Desenvolvedores (implementação)
-- QA (testes)
-- Product Owner (validação)
-- Novos membros (onboarding)
-
----
-
-## 2. Glossário de Termos
+### 1.1 Glossário de Termos
 
 | Termo | Definição |
 |---|---|
@@ -27,54 +20,188 @@ independente de implementação. Serve como **fonte da verdade** para:
 | **Data Respondido** | Data da última resposta na Tabela fato |
 | **Alterado Data** | Data da última movimentação no Help360 |
 | **Acompanhamento** | Arquivo final com tickets que devem ser abertos |
-| **SLA** | Service Level Agreement |
-| **Previsão** | Data limite para resolução (SLA do ticket) |
+| **SLA** | Acordo de nível de serviço |
+| **Previsão** | Data limite para resolução |
+| **SPPREV** | Servidores internos (`@sp.gov.br`) |
+| **Atlantic** | Funcionários da terceirizada (`@atlanticsolutions.com.br`) |
+| **Backlog** | Fila interna de tickets pendentes |
+| **Ação interna** | Quando `responsável == alterado_por` |
+| **Ticket travado** | Ticket em aberto sem ação real por > 3 dias |
 
 ---
 
-## 3. Regra Central — Exibição de Ticket
+## 2. Classificação de Empresa
 
-### 3.1 Um ticket DEVE SER ABERTO se:
+### 2.1 Regra
 
-| # | Condição | Fórmula |
-|---|---|---|
-| 1 | Nunca foi respondido | `Data Respondido IS NULL` |
-| 2 | Foi respondido, mas voltou a ter movimentação | `Data Respondido <= Alterado Data` |
-| 3 | Status temporal recente | `Status ∈ {Resolvido, Aguardando}` **E** `Alterado Data >= hoje - N` |
-| 4 | Em atendimento com previsão vigente | `Status = 'Em atendimento'` **E** `Previsão` dentro da janela |
-
-### 3.2 Um ticket NÃO DEVE SER ABERTO se:
-
-| # | Condição | Fórmula |
-|---|---|---|
-| 1 | Já respondido, sem movimentação posterior | `Data Respondido > Alterado Data` |
-| 2 | Fora da janela temporal | `Alterado Data < hoje - N` |
-| 3 | Previsão muito antiga | `Previsão < hoje - 365 dias` |
-| 4 | Categoria não monitorada | `Categoria ∈ CATEGORIAS_FORA` |
-
----
-
-## 4. Os 6 Filtros em Cascata (Programa2)
-
-### Filtro F1 — Status Temporais
+Toda pessoa é classificada em 4 tipos, com base no **domínio do email**:
 
 ```python
-Status IN ('Resolvido', 'Aguardando confirmação do usuário')
-AND Alterado Data >= (hoje - N dias)
-Filtro F2 — Em Atendimento
+if '@atlanticsolutions.com.br' in email: return 'Atlantic'
+if '@sp.gov.br' in email:                return 'SPPREV'
+return 'Outro'
+2.2 Regra adicional
+Nomes que não estão na tabela analistas (nem no usuario_empresa.xlsx):
+
+text
+→ Classificados como 'Externo'
+Motivo: muitos são analistas antigos, terceirizados de outras empresas, ou contas genéricas.
+
+2.3 Distribuição esperada
+Tipo	Comportamento
+SPPREV	Gera alerta de ticket travado
+Atlantic	Não gera alerta (não compete ao SPPREV)
+Externo	Não gera alerta
+Outro	Não gera alerta
+3. Detecção de Backlog
+3.1 Regra
+Um ticket é considerado em backlog se a página HTML do Help360 contém:
+
+"Este ticket se tornou um Backlog"
+
+"Se tornou backlog"
+
+"Em backlog"
+
+"Aguardando backlog"
+
+"Ticket backlog"
+
+3.2 Comportamento
+Campo backlog	Significado	Gera alerta?
+0	Não está em backlog	✅ Sim (se outras regras baterem)
+1	Está em backlog	❌ NÃO — é fila controlada
+3.3 Motivo
+Tickets em backlog são esperados — não indicam problema. Suprimi-los reduz drasticamente os falsos positivos.
+
+4. Matriz de Verdade (12 Cenários)
+4.1 Variáveis
+Variável	Valores possíveis
+Responsável	SPPREV, Atlantic, Outro, Externo
+Alterado por	SPPREV, Atlantic, Outro, Externo
+Status	Aguardando confirmação, Em atendimento, Resolvido
+4.2 Cenários
+ID	Responsável	Alterado por	Status	Interpretação
+CEN-01	SPPREV	SPPREV	Aguardando	SPPREV ativo, aguardando usuário
+CEN-02	SPPREV	Atlantic	Aguardando	⚠️ Atlantic mexeu em ticket SPPREV
+CEN-03	SPPREV	SPPREV	Em atendimento	✅ Ação interna em andamento
+CEN-04	SPPREV	Atlantic	Em atendimento	⚠️ Atlantic interveio
+CEN-05	SPPREV	SPPREV	Resolvido	✅ SPPREV resolveu
+CEN-06	SPPREV	Atlantic	Resolvido	⚠️ Atlantic resolveu ticket SPPREV
+CEN-07	Atlantic	SPPREV	Aguardando	SPPREV encaminhou para Atlantic
+CEN-08	Atlantic	Atlantic	Aguardando	✅ Atlantic ativo, aguardando usuário
+CEN-09	Atlantic	SPPREV	Em atendimento	SPPREV encaminhou
+CEN-10	Atlantic	Atlantic	Em atendimento	✅ Atlantic ativo
+CEN-11	Atlantic	SPPREV	Resolvido	SPPREV resolveu para Atlantic
+CEN-12	Atlantic	Atlantic	Resolvido	✅ Atlantic resolveu
+4.3 Categorias fora da matriz
+Valor	Significado
+OUTRO	Tem movimentação, mas status fora dos 3 mapeados (Fechado, Cancelado, etc.)
+SEM_DADOS	Ainda não foi enriquecido (não tem movimentação capturada)
+5. Ação Interna
+5.1 Regra
 python
-Status = 'Em atendimento'
-AND Previsão <= (hoje + dias_postergar)
-AND Previsão >= (hoje - 365 dias)
-Filtro F3 — Categoria
-python
-Categoria NOT IN CATEGORIAS_FORA
-Filtros F4a / F4b / F4c — Respondidos
-Filtro	Condição	Ação
-F4a	Data Respondido IS NULL	Mantém
-F4b	Data Respondido <= Alterado Data	Mantém
-F4c	Data Respondido > Alterado Data	Remove
-5. Convenção de Células na Tabela Fato
+acao_interna = (responsavel_atual == ultimo_autor_movimentacao)
+Valor	Significado
+1	O responsável foi quem mexeu por último
+0	Outra pessoa mexeu
+NULL	Sem movimentação capturada (SEM_DADOS)
+5.2 Interpretação
+acao_interna	status	Significado
+1	Em atendimento	✅ Andamento normal
+1	Aguardando	⚠️ Pode ser travado
+0	Em atendimento	⚠️ Outro mexeu (backlog? encaminhamento?)
+0	Aguardando	✅ Aguardando usuário externo
+6. Tickets Travados
+6.1 Definição
+Um ticket é considerado travado se TODAS as condições:
+
+text
+1. Status em aberto (não Resolvido/Fechado/Cancelado/Duplicado)
+2. responsavel_empresa == 'SPPREV'      ← Só SPPREV gera alerta
+3. acao_interna == 1                     ← Resp. foi quem mexeu
+4. backlog == 0                          ← Não está em fila controlada
+5. dias_aberto > 3                       ← Mais de 3 dias sem ação
+6.2 Comportamento
+Situação	Ação
+SPPREV travado	⚠️ Alerta — supervisor deve cobrar
+Atlantic travado	ℹ️ Informativo — não gera alerta
+Externo travado	ℹ️ Informativo
+Em backlog	✅ Suprimido — é esperado
+6.3 Motivo da regra SPPREV
+Tickets com responsável Atlantic são geridos pela própria terceirizada — não competem ao SPPREV cobrar. O SPPREV só deve se preocupar com tickets de seus próprios servidores.
+
+7. Filtros do Dashboard
+7.1 Filtros Globais (sidebar)
+Filtro	Valores	Aplicação
+Período	Data inicial/final	Por criado_data
+Status	Todos	Filtra por status
+Categoria	Todas	Filtra por categoria
+Responsável	Todos	Filtra por responsável
+Tipo de Empresa	SPPREV/Atlantic/Externo/Outro	Por responsavel_empresa
+Status de Resposta	Todos/Respondidos/Não respondidos	Por respondido
+Backlog	Todos/Em backlog/Fora do backlog	Por backlog
+Ação Interna	Todos/Resp.=Alt./Resp.≠Alt.	Por acao_interna
+7.2 Combinações Úteis
+Objetivo	Filtros
+Ver só tickets SPPREV travados	Empresa=SPPREV + Ação Interna=Resp.=Alt. + Backlog=Fora
+Ver tickets aguardando usuário	Status=Aguardando confirmação
+Ver tickets respondidos	Status Resposta=Respondidos
+Ver SPPREV sem resposta	Empresa=SPPREV + Status Resposta=Não respondidos
+8. Ciclo de Vida do Ticket
+text
+┌─────────┐
+│ ABERTO  │
+└────┬────┘
+     │
+     ▼
+┌──────────────┐
+│ EM ATENDIMENTO│◄─────┐
+└──────┬───────┘      │
+       │              │
+       ▼              │
+┌──────────────┐      │
+│ AGUARDANDO   │      │
+│ CONFIRMAÇÃO  │──────┘ (reabertura)
+└──────┬───────┘
+       │
+       ▼
+┌──────────┐    ┌───────────┐
+│ RESOLVIDO│───▶│  BACKLOG  │
+└────┬─────┘    └───────────┘
+     │               │
+     ▼               ▼
+┌──────────┐    ┌───────────┐
+│ FECHADO  │    │ Retorna a │
+└──────────┘    │ atendimento│
+                └───────────┘
+9. Regras de SLA
+9.1 Definição
+O SLA é definido pelo campo previsao, calculado pelo Help360 com base em:
+
+Categoria (SLAs diferentes por área)
+
+Prioridade (Alta, Média, Baixa)
+
+Tipo de solicitante (interno, externo)
+
+9.2 Cálculo
+Status	Fórmula
+Cumprido	data_resolvido <= previsao
+Estourado	data_resolvido > previsao
+Em andamento	data_resolvido IS NULL
+Em risco	previsao < hoje + 1 dia e status != Resolvido
+9.3 SLA por Criticidade (regra de negócio externa)
+Criticidade	Prazo	Ação
+Urgente	3 dias úteis	Fechamento automático
+Alta	5 dias úteis	Fechamento automático
+Média 1 e 2	10 dias úteis	Fechamento automático
+Baixa 1 e 2	15 dias úteis	Fechamento automático
+⚠️ Nota: este cálculo em dias úteis ainda não está implementado — atualmente usamos dias corridos.
+
+10. Convenção de Células na Tabela Fato
+A Tabela fato é preenchida manualmente pelos operadores. Cada célula pode ter:
+
 Conteúdo	Significado	Ação
 0	Não respondido	NaT → abre
 -	Não se aplica	NaT → abre
@@ -82,7 +209,24 @@ Conteúdo	Significado	Ação
 '' (vazio)	Sem informação	NaT → abre
 "04/09/2026 - 14:03: Enviado..."	Respondido em 04/09 14:03	Data extraída
 "31/08: Enviado..."	Respondido em 31/08 (ano atual)	Data extraída
-6. Categorias Ignoradas
+10.1 Regra de Extração
+Se for Timestamp nativo → usa direto
+
+Se for número → converte série do Excel (mas ignora 0)
+
+Se for string:
+
+Ignora '', '0', '0.0', '-', '#N/A', '#VALUE!', 'nan', 'None'
+
+Procura todas as datas via regex (DD/MM/AAAA e DD/MM)
+
+Retorna a MAIOR
+
+Se nada → NaT
+
+11. Categorias Ignoradas
+Lista definida em utils_help360.py (constante CATEGORIAS_FORA):
+
 text
 1ª Etapa Censo
 Alteração de Grupo de Pagamento
@@ -113,41 +257,34 @@ Rúbricas Concomitantes
 Task
 Vínculos
 Visita domiciliar
-7. Status Monitorados
-7.1 Abertos
-Status	Quando abre
+Motivo: são tratadas por outras equipes, fora do escopo da DIO/SPRO.
+
+12. Status Monitorados
+12.1 Abertos (geram alerta)
+Status	Quando
 Em atendimento	Previsão vigente
 Resolvido	Alterado recentemente
 Aguardando confirmação do usuário	Alterado recentemente
-7.2 NÃO abertos
+12.2 Fechados (não geram alerta)
 Status	Motivo
 Fechado	Já encerrado
 Cancelado	Não requer ação
-Duplicado	Já tratado em outro ticket
-8. Regras de SLA
-8.1 Definição
-O SLA de cada ticket é definido no campo Previsão, calculado pelo Help360.
-
-8.2 Cálculo de Cumprimento
-Status	Fórmula
-Cumprido	data_resolvido <= previsao
-Estourado	data_resolvido > previsao
-Em andamento	data_resolvido IS NULL
-Em risco	previsao < hoje + 1 dia e status != Resolvido
-9. LGPD e Privacidade
-9.1 Dados Sensíveis
-Campo	Tipo de dado
+Duplicado	Já tratado
+Aguardando Deploy	Fila controlada
+13. LGPD e Privacidade
+13.1 Dados Sensíveis
+Campo	Tipo
 tickets.solicitante	Nome, CPF, matrícula
 tickets.descricao	Texto livre
 mensagens.conteudo	Texto livre
-9.2 Medidas Aplicadas
+13.2 Medidas
 Medida	Aplicação
-Anonimização em relatórios	Regex substitui CPF/email/telefone
+Anonimização	Regex substitui CPF/email/telefone
 Banco local	Sem exposição em rede
 Acesso restrito	Só o operador
 Retenção	Sugestão: 5 anos
 Auditoria	Log de toda manipulação
-9.3 Função de Anonimização
+13.3 Função de Anonimização
 python
 def anonimizar_dados_lgpd(texto):
     padrao_cpf = r'\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b'
@@ -158,45 +295,18 @@ def anonimizar_dados_lgpd(texto):
     texto = re.sub(padrao_email, '<EMAIL>', texto)
     texto = re.sub(padrao_telefone, '<TELEFONE>', texto)
     return texto
-10. Regras de Roteamento
-10.1 Encaminhamento Correto
-Um encaminhamento é correto se o destino resolveu o ticket.
+13.4 Boas Práticas
+❌ Nunca commitar .db para o Git
 
-10.2 Encaminhamento Incorreto
-Um encaminhamento é incorreto se o ticket voltou da área.
+❌ Nunca exportar relatórios com CPF completo
 
-10.3 Cálculo de Pulos
-text
-pulos = count(encaminhamentos no histórico)
-Um ticket ideal tem 0-1 pulos. Tickets com 3+ pulos indicam roteamento ruim.
+✅ Sempre anonimizar antes de compartilhar
 
-11. Regras de Análise
-11.1 Tempo de Resposta
-text
-tempo_resposta = data_resolvido - criado_data
-11.2 Tempo até 1ª Ação
-text
-tempo_1a_acao = primeira_mensagem_do_responsavel - recebimento
-Se > 48h, o ticket é "esquecido".
+✅ Sempre usar getpass para senhas
 
-11.3 Produtividade
-⚠️ Cuidado: produtividade não é só volume.
-
-11.4 Reincidência
-Mesmo solicitante abre 3+ tickets em 30 dias.
-
-12. Ciclo de Vida do Ticket
-text
-ABERTO → EM ATENDIMENTO → AGUARDANDO CONFIRMAÇÃO → RESOLVIDO → FECHADO
-              ↑                                            │
-              └──────────── (reabertura) ──────────────────┘
-13. Referências
-02_Requisitos.md
-
+14. Referências
 04_Modelo_Dados.md
 
 06_Analises_e_Metricas.md
 
-text
-
----
+LGPD - Lei 13.709/2018
