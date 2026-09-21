@@ -121,6 +121,73 @@ Cada análise é apresentada em:
 
 ---
 
+## 3.5 SLA por Criticidade
+
+### 3.5.1 Definição
+
+O SLA oficial (definido pela Atlantic + SPPREV) segue regras por criticidade:
+
+| Criticidade | Prazo | Ação em caso de inércia |
+|---|---|---|
+| **Urgente** | 3 dias úteis | Fechamento automático |
+| **Alta** | 5 dias úteis | Fechamento automático |
+| **Média 1 e 2** | 10 dias úteis | Fechamento automático |
+| **Baixa 1 e 2** | 15 dias úteis | Fechamento automático |
+
+### 3.5.2 Regra de Cálculo
+
+**Dias úteis** = dias entre criação e resolução, excluindo:
+- Sábados e domingos
+- Feriados nacionais e estaduais (SP)
+
+**Implementação:**
+python:
+from utils_sla import contar_dias_uteis, adicionar_dias_uteis
+from holidays import Brazil
+
+dias_uteis = contar_dias_uteis(criado_data, data_resolvido)
+previsao_ideal = adicionar_dias_uteis(criado_data, prazo_criticidade)
+### 3.5.3 Colunas do Banco
+Adicionadas via script scripts/analisar_sla_criticidade.py:
+
+Coluna	Tipo	Descrição
+previsao_esperada	DATETIME	Data calculada com base na criticidade
+dias_uteis_resolucao	INTEGER	Dias úteis entre criação e resolução
+sla_criticidade_ok	INTEGER	1=cumprido, 0=estourado, NULL=em aberto
+3.5.4 Métricas
+Métrica	Fórmula
+% Cumprimento por criticidade	COUNT(sla_criticidade_ok=1) / COUNT(*) * 100
+Média dias úteis	AVG(dias_uteis_resolucao) GROUP BY prioridade
+Tickets fora do prazo	COUNT(sla_criticidade_ok=0)
+3.5.5 Visualizações
+Gráfico de barras: % cumprimento por criticidade
+
+Gráfico de barras: dias úteis médios vs. ideal
+
+KPIs no topo: total, % cumprido, média dias
+
+### 3.5.6 Insights Automáticos
+⚠️ Se Urgente < 90% → alerta crítico
+
+⚠️ Se qualquer criticidade < 70% → alerta
+
+✅ Se todas > 85% → OK
+
+### 3.5.7 Resultados Observados
+Distribuição dos tickets (base 2024-2026):
+
+Criticidade	Total	Cumpridos	%
+Média-2	1.782	1.173	65.8% ⚠️
+Baixa-2	2.258	1.616	71.6% ⚠️
+Alta	404	306	75.7%
+Urgente	67	53	79.1% ⚠️
+Baixa	777	618	79.5%
+Média	4.536	3.667	80.8% ✅
+Insight: Prioridades Média-2 e Baixa-2 são as que mais estouram. Urgente abaixo de 80% é crítico.
+
+---
+
+
 ## 4. Produtividade
 
 ### 4.1 Tickets Resolvidos por Analista 🥇
@@ -257,7 +324,7 @@ text
 
 ---
 
-## 7. Diagnóstico (Matriz de Verdade) ⭐ NOVO
+## 7. Diagnóstico (Matriz de Verdade) 
 
 ### 7.1 Distribuição dos 12 Cenários 🥇
 
@@ -305,7 +372,7 @@ text
 
 **Aplicação:**
 
-```sql
+sql
 SELECT id, titulo, responsavel_atual, dias_aberto
 FROM tickets
 WHERE status IN ('Em atendimento', 'Aguardando confirmação do usuário')
@@ -322,14 +389,14 @@ Lista detalhada (Top 30)
 
 Aging médio
 
-7.4 Tickets Atlantic (Informativo) 🥈
+### 7.4 Tickets Atlantic (Informativo) 🥈
 Campo	Valor
 Objetivo	Atlantic em situação similar (não gera alerta)
 Métrica	COUNT(tickets onde resp=Atlantic E acao_interna=1 E dias>3)
 Ação	Informativo apenas
 Motivo: não compete ao SPPREV cobrar. Mas é útil saber a extensão.
 
-7.5 Distribuição SPPREV vs Atlantic 🥇
+### 7.5 Distribuição SPPREV vs Atlantic 🥇
 Campo	Valor
 Objetivo	Quanto cada empresa está com carga
 Métrica	COUNT(tickets) GROUP BY responsavel_empresa
@@ -343,34 +410,127 @@ Externo:  1.155
 Outro:    2.187
 Insight: se Atlantic tem > 50% dos tickets, indica dependência externa alta.
 
-8. Backlog
-8.1 Tickets em Backlog 🥇
+### 8. Backlog
+### 8.1 Tickets em Backlog 🥇
 Campo	Valor
 Objetivo	Quantos tickets estão na fila do backlog
 Métrica	COUNT(backlog = 1)
 Fonte	tickets
 Insight: backlog grande pode indicar capacidade insuficiente.
 
-8.2 Tickets Fora do Backlog 🥇
+### 8.2 Tickets Fora do Backlog 🥇
 Campo	Valor
 Objetivo	Tickets que deveriam estar em atendimento mas não estão
 Métrica	COUNT(backlog = 0 E status em aberto)
 Insight: se muitos tickets estão fora do backlog sem ação → problema de triagem.
 
-9. Reincidência
-9.1 Taxa de Reincidência 🥈
+## 8.5 Grafo de Roteamento 
+
+### 8.5.1 Objetivo
+
+Visualizar o **fluxo de encaminhamentos** entre analistas.
+
+### 8.5.2 Como Funciona
+
+**Fonte dos dados:** tabela `movimentacoes`
+
+**Extração de encaminhamentos:**
+Para cada ticket:
+Ordena movimentações por data
+Para cada par consecutivo (autor_A, autor_B):
+Se autor_A ≠ autor_B:
+incrementa aresta A → B
+
+text
+
+**Contagem:** cada par (origem, destino) tem um peso = número de vezes que ocorreu.
+
+### 8.5.3 Visualização
+
+- **Nós** = analistas (tamanho = volume de encaminhamentos)
+- **Arestas** = encaminhamentos (espessura = quantidade)
+- **Cor do nó** = empresa (SPPREV dourado, Atlantic verde)
+- **Interativo** (arrastar, zoom, tooltip)
+
+### 8.5.4 Filtros Disponíveis
+
+| Filtro | Valores |
+|---|---|
+| Período | Data inicial/final |
+| Top N | 5 a 50 analistas |
+| Empresa | Todas, SPPREV, Atlantic, Externo |
+
+### 8.5.5 Stack
+
+- `networkx` — análise de grafos
+- `pyvis` — visualização interativa
+
+### 8.5.6 Insights
+
+| Padrão | Significado |
+|---|---|
+| **Hub** | Nó grande = analista central |
+| **Ciclo** | A → B → A (retrabalho) |
+| **Ponte** | Conecta 2 áreas isoladas |
+| **Isolado** | Nó periférico com poucas conexões |
+
+---
+
+## 8.6 Árvore de Encaminhamentos ⭐ NOVO
+
+### 8.6.1 Objetivo
+
+Visualizar o **fluxo completo** de um ticket específico.
+
+### 8.6.2 Como Funciona
+
+**Input:** ID do ticket
+**Fonte:** `movimentacoes` filtradas por `ticket_id`
+
+**Layout:** Vertical em cascata
+[Solicitante]
+↓
+[Autor 1]
+↓
+[Autor 2]
+↓
+[Autor N]
+
+text
+
+### 8.6.3 Elementos Visuais
+
+- **Círculo colorido** por empresa
+- **Box ao lado** com autor + data + status
+- **Setas** indicando sequência temporal
+- **Alternância** esquerda/direita para clareza
+
+### 8.6.4 Stack
+
+- `networkx` — construção do grafo
+- `matplotlib` — renderização (sem precisar de Graphviz)
+
+### 8.6.5 Quando Usar
+
+- Investigar tickets com muitos pulos
+- Entender o caminho do ticket
+- Auditoria de fluxo
+- Apresentar histórico para chefia
+
+### 9. Reincidência
+### 9.1 Taxa de Reincidência 🥈
 Campo	Valor
 Objetivo	O mesmo problema está voltando?
 Métrica	COUNT(solicitantes com > 1 ticket) / COUNT(distintos)
 Fonte	tickets
-9.2 Top 10 Solicitantes 🥈
+### 9.2 Top 10 Solicitantes 🥈
 Campo	Valor
 Objetivo	Quem abre mais tickets
 Métrica	COUNT(*) GROUP BY solicitante ORDER BY DESC LIMIT 10
 Insight: pode indicar problema sistêmico.
 
-10. Backlog e Tendências
-10.1 Aging Médio 🥈
+### 10. Backlog e Tendências
+### 10.1 Aging Médio 🥈
 Campo	Valor
 Métrica	AVG(hoje - criado_data) WHERE status != Resolvido
 Fonte	tickets
@@ -380,7 +540,7 @@ Aging baixo → dando conta
 
 Aging alto → backlog antigo acumulando
 
-10.2 Taxa Entrada vs. Saída 🥈
+### 10.2 Taxa Entrada vs. Saída 🥈
 Campo	Valor
 Métrica	novos_hoje / resolvidos_hoje
 Interpretação:
@@ -391,17 +551,17 @@ Interpretação:
 
 < 1 → reduzindo ✅
 
-10.3 Projeção de Fechamento 🥈
+### 10.3 Projeção de Fechamento 🥈
 Campo	Valor
 Métrica	backlog_atual / média_resolvidos_por_dia
 Resultado	Dias estimados para zerar
-11. Sazonalidade
-11.1 Volume por Dia da Semana 🥉
+### 11. Sazonalidade
+### 11.1 Volume por Dia da Semana 🥉
 Campo	Valor
 Métrica	COUNT(*) GROUP BY dia_semana
 Insight: identifica padrões (ex: "segundas têm 40% mais tickets").
 
-11.2 Volume por Hora 🥉
+### 11.2 Volume por Hora 🥉
 Campo	Valor
 Métrica	COUNT(*) GROUP BY HOUR(criado_data)
 Insight: dimensionar equipe por turno.
