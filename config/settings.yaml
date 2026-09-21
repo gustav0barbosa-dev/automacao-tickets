@@ -1,0 +1,3 @@
+teams:
+  webhook_url: "https://default3a78b0cd7c8e492983d5190a6cc013.65.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/08/workflows/dc3230f9e49946ff8be0a4682be32216/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=YrkJLbctn-y2_DOND1hg6hm3wcsUdVh7Tdpz9QrnsSY"
+
