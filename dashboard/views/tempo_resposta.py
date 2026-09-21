@@ -26,15 +26,18 @@ def render(df):
         return
 
     # ---------- KPIs ----------
+    df_res_sem_outlier = df_res[df_res['dias_resolucao'] <= 365].copy()
+
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        kpi('Tempo Médio', f'{df_res["dias_resolucao"].mean():.1f}d')
+        kpi('Tempo Médio', f'{df_res_sem_outlier["dias_resolucao"].mean():.1f}d',
+            ajuda=f'Exclui {len(df_res) - len(df_res_sem_outlier)} outliers (> 365d)')
     with col2:
-        kpi('Mediana (P50)', f'{df_res["dias_resolucao"].median():.0f}d')
+        kpi('Mediana (P50)', f'{df_res_sem_outlier["dias_resolucao"].median():.0f}d')
     with col3:
-        kpi('P90', f'{df_res["dias_resolucao"].quantile(0.9):.0f}d')
+        kpi('P90', f'{df_res_sem_outlier["dias_resolucao"].quantile(0.9):.0f}d')
     with col4:
-        kpi('P99', f'{df_res["dias_resolucao"].quantile(0.99):.0f}d')
+        kpi('P99', f'{df_res_sem_outlier["dias_resolucao"].quantile(0.99):.0f}d')
 
     separador()
 
@@ -88,20 +91,25 @@ def render(df):
 
     # ---------- Por categoria ----------
     painel_title('Tempo Médio por <b>Categoria</b>')
-    cat_tempo = df_res.groupby('categoria').agg(
+    st.markdown('<div class="page-caption" style="margin-top:-14px;">'
+                'Excluindo outliers (> 365 dias)'
+                '</div>',
+                unsafe_allow_html=True)
+
+    cat_tempo = df_res_sem_outlier.groupby('categoria').agg(
         total=('id', 'count'),
         dias_medio=('dias_resolucao', 'mean'),
-        dias_1a=('dias_1a_resposta', 'mean'),
+        dias_mediana=('dias_resolucao', 'median'),
     ).reset_index()
     cat_tempo = cat_tempo[cat_tempo['total'] >= 3]
     cat_tempo = cat_tempo.sort_values('dias_medio')
 
     if not cat_tempo.empty:
         hbar_list([
-            {'label': r['categoria'],
+            {'label': f'{r["categoria"][:30]} · {int(r["total"])} tickets',
              'value': float(r['dias_medio']),
              'formatted': f'{r["dias_medio"]:.1f}d',
-             'accent': r['dias_medio'] > 10}
+             'accent': r['dias_medio'] > 15}
             for _, r in cat_tempo.iterrows()
         ])
 
@@ -109,7 +117,7 @@ def render(df):
         melhor = cat_tempo.iloc[0]
         callout(
             'info', 'Insight',
-            f'<b>{pior["categoria"]}</b> é a categoria mais lenta '
+            f'<b>{pior["categoria"]}</b> é a mais lenta '
             f'(<b>{pior["dias_medio"]:.1f} dias</b>). '
             f'Já <b>{melhor["categoria"]}</b> resolve em '
             f'<b>{melhor["dias_medio"]:.1f} dias</b>.'
@@ -119,34 +127,54 @@ def render(df):
 
     # ---------- Por prioridade ----------
     painel_title('Tempo Médio por <b>Prioridade</b>')
-    prio_tempo = df_res.groupby('prioridade').agg(
+    st.markdown('<div class="page-caption" style="margin-top:-14px;">'
+                'Excluindo tickets com mais de 365 dias (outliers)'
+                '</div>',
+                unsafe_allow_html=True)
+
+    # Filtra outliers
+    df_res_sem_outlier = df_res[df_res['dias_resolucao'] <= 365].copy()
+
+    prio_tempo = df_res_sem_outlier.groupby('prioridade').agg(
         total=('id', 'count'),
         dias_medio=('dias_resolucao', 'mean'),
+        dias_mediana=('dias_resolucao', 'median'),
     ).reset_index()
 
-    ordem = ['Crítica', 'Alta', 'Média', 'Baixa-1', 'Baixa-2', 'Baixa-3']
+    # Ordenação
+    ordem = ['Crítica', 'Urgente', 'Alta', 'Média', 'Média-1', 'Média-2',
+             'Baixa', 'Baixa-1', 'Baixa-2', 'Baixa-3']
     prio_tempo['ordem'] = prio_tempo['prioridade'].map(
         {p: i for i, p in enumerate(ordem)}
     ).fillna(99)
     prio_tempo = prio_tempo.sort_values('ordem')
 
     hbar_list([
-        {'label': r['prioridade'],
+        {'label': f'{r["prioridade"]} · média: {r["dias_medio"]:.1f}d · mediana: {r["dias_mediana"]:.0f}d',
          'value': float(r['dias_medio']),
          'formatted': f'{r["dias_medio"]:.1f}d',
-         'accent': r['prioridade'] == 'Crítica'}
+         'accent': r['prioridade'] in ['Crítica', 'Urgente']}
         for _, r in prio_tempo.iterrows()
     ])
 
-    # Alerta de prioridade invertida
-    crit = prio_tempo[prio_tempo['prioridade'] == 'Crítica']['dias_medio'].values
-    alta = prio_tempo[prio_tempo['prioridade'] == 'Alta']['dias_medio'].values
-    if len(crit) > 0 and len(alta) > 0 and crit[0] > alta[0]:
-        callout(
-            'warning', 'Atenção',
-            f'Prioridade <b>Crítica</b> está demorando mais que <b>Alta</b> '
-            f'({crit[0]:.1f} vs {alta[0]:.1f} dias). Verifique a triagem.'
-        )
+    # Comparação com/sem outliers
+    df_medio_com_outlier = df_res.groupby('prioridade')['dias_resolucao'].mean()
+    df_medio_sem_outlier = prio_tempo.set_index('prioridade')['dias_medio']
+
+    diff = (df_medio_com_outlier - df_medio_sem_outlier).dropna()
+    if not diff.empty and diff.abs().max() > 100:
+        pior = diff.idxmax()
+        callout('warning', 'Atenção',
+                f'A prioridade <b>{pior}</b> tem média de '
+                f'<b>{df_medio_com_outlier[pior]:.0f} dias</b> com outliers, '
+                f'mas apenas <b>{df_medio_sem_outlier[pior]:.1f} dias</b> sem eles. '
+                f'Isso indica <b>tickets muito antigos</b> puxando a média.')
+
+    info_grafico(
+        'Excluindo tickets com mais de <b>365 dias</b> entre criação e resolução. '
+        'A <b>média</b> (barra) é sensível a outliers; a <b>mediana</b> (no texto) é mais robusta. '
+        'Se a média estiver muito acima da mediana, existem tickets antigos distorcendo o número.'
+    )
 
     separador()
     
