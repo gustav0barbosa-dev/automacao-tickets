@@ -9,7 +9,7 @@ import plotly.express as px
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
-    botao_exportar,
+    botao_exportar, legenda_grafico, info_grafico,
 )
 from config import COR_BAR, COR_DANGER
 
@@ -59,6 +59,15 @@ def render(df):
         fig = aplicar_tema_plotly(fig, altura=300)
         st.plotly_chart(fig, use_container_width=True,
                         config={'displayModeBar': False})
+
+        legenda_grafico([
+            {'cor': COR_BAR, 'label': 'Frequência de tickets', 'tipo': 'barra'},
+        ])
+        info_grafico(
+            'O <b>eixo X</b> mostra os dias até a resolução. '
+            'O <b>eixo Y</b> mostra quantos tickets levaram aquele tempo. '
+            'A maioria se concentra à esquerda (rápido) ou à direita (lento).'
+        )
 
     with col_dir:
         painel_title('Resumo <b>Estatístico</b>')

@@ -9,7 +9,7 @@ import plotly.express as px
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
-    botao_exportar,
+    botao_exportar, legenda_grafico, info_grafico,
 )
 from config import COR_BAR, COR_DANGER, COR_TEXT_SEC
 
@@ -115,6 +115,17 @@ def render(df):
         fig = aplicar_tema_plotly(fig, altura=380)
         st.plotly_chart(fig, use_container_width=True,
                         config={'displayModeBar': False})
+
+        legenda_grafico([
+            {'cor': '#8b96a8', 'label': 'OK (até 9 dias)'},
+            {'cor': '#e0867a', 'label': 'Lento (acima de 9 dias)'},
+        ])
+        info_grafico(
+            'Cada bolha é um <b>analista</b>. '
+            '<b>X</b> = tickets atribuídos · <b>Y</b> = dias médios de resolução · '
+            '<b>Tamanho</b> = tickets em aberto. '
+            'Bolsas grandes à direita superior indicam <b>sobrecarga + lentidão</b>.'
+        )
 
     separador()
 

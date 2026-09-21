@@ -9,7 +9,7 @@ import streamlit as st
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
-    botao_exportar,
+    botao_exportar, legenda_grafico, info_grafico,
 )
 from config import COR_SUCCESS, COR_DANGER, COR_WARNING, STATUS_FECHADOS
 
@@ -124,6 +124,16 @@ def render(df):
             font=dict(color='#eae7e1'),
         )
         st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+
+        legenda_grafico([
+            {'cor': COR_SUCCESS, 'label': 'Responsável = Alterador'},
+            {'cor': COR_DANGER, 'label': 'Responsável ≠ Alterador'},
+        ])
+        info_grafico(
+            '<b>Resp. = Alterador</b>: o responsável fez a última ação. '
+            '<b>Resp. ≠ Alterador</b>: outra pessoa mexeu (pode indicar '
+            'backlog ou encaminhamento).'
+        )
 
     separador()
 

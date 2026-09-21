@@ -73,3 +73,14 @@ def carregar_mensagens():
     if 'data_hora' in df.columns:
         df['data_hora'] = pd.to_datetime(df['data_hora'], errors='coerce')
     return df
+
+@st.cache_data(ttl=300)
+def carregar_analistas():
+    """Carrega a tabela de analistas."""
+    if not CAMINHO_BANCO.exists():
+        return pd.DataFrame()
+
+    conn = sqlite3.connect(CAMINHO_BANCO)
+    df = pd.read_sql('SELECT nome, email, empresa_tipo FROM analistas', conn)
+    conn.close()
+    return df

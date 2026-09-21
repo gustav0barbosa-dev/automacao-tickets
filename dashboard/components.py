@@ -188,3 +188,60 @@ def botao_exportar(df, nome_arquivo, key=None):
         key=key or f'export_{nome_arquivo}',
         use_container_width=False,
     )
+
+# ==================== LEGENDAS DE GRÁFICOS ====================
+def legenda_grafico(itens):
+    """
+    Renderiza uma legenda customizada abaixo de um gráfico.
+    HTML em linha única (evita que Markdown trate como bloco de código).
+    """
+    elementos = []
+
+    for it in itens:
+        cor = it.get('cor', '#8b96a8')
+        label = it.get('label', '')
+        tipo = it.get('tipo', 'circulo')
+
+        if tipo == 'linha':
+            icone = f'<div style="width:20px;height:3px;background:{cor};border-radius:2px;"></div>'
+        elif tipo == 'barra':
+            icone = f'<div style="width:14px;height:14px;background:{cor};border-radius:3px;"></div>'
+        else:
+            icone = f'<div style="width:12px;height:12px;background:{cor};border-radius:50%;"></div>'
+
+        elementos.append(
+            f'<div style="display:flex;align-items:center;gap:8px;">'
+            f'{icone}'
+            f'<span style="font-size:12px;color:#9299a6;">{label}</span>'
+            f'</div>'
+        )
+
+    html = (
+        f'<div style="display:flex;gap:20px;flex-wrap:wrap;'
+        f'padding:10px 14px;margin-top:8px;'
+        f'background:rgba(255,255,255,.02);border-radius:6px;">'
+        f'{"".join(elementos)}'
+        f'</div>'
+    )
+
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def info_grafico(texto):
+    """
+    Renderiza uma caixa de ajuda abaixo do gráfico.
+    HTML em linha única.
+    """
+    html = (
+        f'<div style="display:flex;gap:10px;align-items:flex-start;'
+        f'padding:10px 14px;margin-top:8px;'
+        f'background:rgba(201,166,102,.06);'
+        f'border-left:3px solid #c9a666;border-radius:6px;">'
+        f'<div style="font-size:14px;color:#c9a666;">ℹ️</div>'
+        f'<div style="font-size:12.5px;color:#9299a6;line-height:1.5;">'
+        f'{texto}'
+        f'</div>'
+        f'</div>'
+    )
+
+    st.markdown(html, unsafe_allow_html=True)

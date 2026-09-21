@@ -9,7 +9,7 @@ import plotly.express as px
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
-    botao_exportar,
+    botao_exportar, legenda_grafico, info_grafico,
 )
 from config import COR_WARNING, COR_DANGER, STATUS_FECHADOS
 
@@ -71,6 +71,14 @@ def render(df):
         fig = aplicar_tema_plotly(fig, altura=280)
         st.plotly_chart(fig, use_container_width=True,
                         config={'displayModeBar': False})
+
+        legenda_grafico([
+            {'cor': COR_WARNING, 'label': 'Tickets por faixa de dias', 'tipo': 'barra'},
+        ])
+        info_grafico(
+            'O gráfico mostra quantos tickets estão em aberto em cada faixa de dias. '
+            'Barras à direita indicam <b>tickets antigos</b> que precisam de atenção.'
+        )
 
     with col_b:
         painel_title('Por <b>Status</b>')

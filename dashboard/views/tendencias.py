@@ -10,7 +10,7 @@ import streamlit as st
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
-    botao_exportar,
+    botao_exportar, legenda_grafico, info_grafico,
 )
 from config import (
     COR_GOLD, COR_BAR, COR_SUCCESS, COR_DANGER,
@@ -101,6 +101,10 @@ def render(df):
         st.plotly_chart(fig, use_container_width=True,
                         config={'displayModeBar': False})
 
+        legenda_grafico([
+            {'cor': COR_GOLD, 'label': 'Tickets criados', 'tipo': 'barra'},
+        ])
+
     separador()
 
     # ---------- Criados vs Resolvidos ----------
@@ -171,6 +175,15 @@ def render(df):
                         callout('info', 'Insight',
                                 f'Balanço estável (média: {saldo:+.0f}/mês).')
 
+        legenda_grafico([
+            {'cor': COR_GOLD, 'label': 'Criados', 'tipo': 'linha'},
+            {'cor': COR_SUCCESS, 'label': 'Resolvidos', 'tipo': 'linha'},
+        ])
+        info_grafico(
+            'Se a linha de <b>criados</b> estiver acima da de <b>resolvidos</b>, '
+            'o backlog está crescendo.'
+        )
+
     separador()
 
     # ---------- SLA por Mês ----------
@@ -213,6 +226,11 @@ def render(df):
             fig = aplicar_tema_plotly(fig, altura=320)
             st.plotly_chart(fig, use_container_width=True,
                             config={'displayModeBar': False})
+
+        legenda_grafico([
+            {'cor': COR_SUCCESS, 'label': '% SLA cumprido', 'tipo': 'linha'},
+            {'cor': COR_GOLD, 'label': 'Meta (95%)', 'tipo': 'linha'},
+        ])
 
     separador()
 
@@ -311,6 +329,11 @@ def render(df):
     else:
         callout('info', 'Info',
                 'Dados insuficientes para comparativo YoY (menos de 2 anos).')
+
+        legenda_grafico([
+            {'cor': COR_TEXT_SEC, 'label': 'Ano anterior', 'tipo': 'linha'},
+            {'cor': COR_GOLD, 'label': 'Ano atual', 'tipo': 'linha'},
+        ])
 
     separador()
 

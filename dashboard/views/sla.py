@@ -9,7 +9,7 @@ import plotly.express as px
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
-    botao_exportar,
+    botao_exportar, legenda_grafico, info_grafico,
 )
 from config import COR_SUCCESS, COR_DANGER
 
@@ -69,6 +69,15 @@ def render(df):
              'formatted': f'{estourados} · {100-perc:.1f}%',
              'accent': True},
         ])
+
+        legenda_grafico([
+            {'cor': '#2ecc71', 'label': 'Cumprido'},
+            {'cor': '#e74c3c', 'label': 'Estourado'},
+        ])
+        info_grafico(
+            '<b>Cumprido</b> = ticket resolvido dentro do prazo. '
+            '<b>Estourado</b> = resolvido após o prazo.'
+        )
 
     with col_dir:
         painel_title('SLA por <b>Prioridade</b>')

@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 from components import (
     kpi, hbar_list, callout, painel_title,
     separador, page_header, aplicar_tema_plotly,
-    botao_exportar,
+    botao_exportar, legenda_grafico, info_grafico,
 )
 from config import COR_GOLD, COR_BAR
 

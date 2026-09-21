@@ -6,10 +6,14 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+from components_grafo import (
+    render_grafo, render_legenda, render_arvore_ticket,
+)
+
 from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
-    botao_exportar,
+    botao_exportar, legenda_grafico, info_grafico,
 )
 from config import COR_BAR, COR_DANGER, COR_TEXT_SEC, CAMINHO_BANCO
 
@@ -173,6 +177,121 @@ def render(df):
                 f'Média de <b>{media_msg:.1f} mensagens por ticket</b> — '
                 f'indica alto nível de comunicação/encaminhamento.'
             )
+
+        separador()
+
+    # ==================== GRAFO DE FLUXO ====================
+    painel_title('Grafo de <b>Roteamento</b>')
+    st.markdown('<div class="page-caption" style="margin-top:-14px;">'
+                'Fluxo de encaminhamentos entre analistas.'
+                '</div>',
+                unsafe_allow_html=True)
+
+    from data import carregar_analistas
+    from datetime import date, timedelta
+
+    df_analistas = carregar_analistas()
+
+    if df_analistas.empty:
+        callout('info', 'Info',
+                'Sem dados de analistas. Rode `python scripts/carregar_analistas.py`.')
+    else:
+        # ---------- Filtros do Grafo ----------
+        st.markdown('**Filtros do Grafo**')
+        col_f1, col_f2, col_f3 = st.columns(3)
+
+        with col_f1:
+            hoje = date.today()
+            periodo = st.date_input(
+                'Período',
+                value=(hoje - timedelta(days=90), hoje),
+                key='grafo_periodo',
+            )
+
+        with col_f2:
+            max_nos = st.slider(
+                'Top N analistas',
+                min_value=5, max_value=50, value=20, step=5,
+                key='grafo_max_nos',
+            )
+
+        with col_f3:
+            empresa_filtro = st.selectbox(
+                'Empresa',
+                options=['Todas', 'SPPREV', 'Atlantic', 'Externo'],
+                key='grafo_empresa',
+            )
+
+        # Aplica filtros
+        df_movs_filt = movs_ok.copy()
+
+        # Período
+        if len(periodo) == 2:
+            ini, fim = periodo
+            df_movs_filt = df_movs_filt[
+                (df_movs_filt['data_movimentacao'].dt.date >= ini) &
+                (df_movs_filt['data_movimentacao'].dt.date <= fim)
+            ]
+
+        # Empresa
+        if empresa_filtro != 'Todas':
+            mapa_emp = dict(zip(df_analistas['nome'], df_analistas['empresa_tipo']))
+            df_movs_filt = df_movs_filt[
+                df_movs_filt['autor'].map(mapa_emp) == empresa_filtro
+            ]
+
+        render_legenda()
+
+        if df_movs_filt.empty:
+            callout('info', 'Info',
+                    'Sem movimentações no período/filtro selecionado.')
+        else:
+            st.caption(f'📊 {len(df_movs_filt)} movimentações no período')
+            render_grafo(df_movs_filt, df_analistas,
+                          max_nos=max_nos, altura=600)
+
+        info_grafico(
+            '<b>Tamanho do nó</b> = volume de encaminhamentos. '
+            '<b>Espessura da seta</b> = quantidade. '
+            '<b>Cor</b> = empresa do analista. '
+            'Passe o mouse sobre os nós para ver detalhes.'
+        )
+
+    separador()
+
+    # ==================== ÁRVORE DE UM TICKET ====================
+    painel_title('Árvore de <b>Encaminhamentos</b>')
+    st.markdown('<div class="page-caption" style="margin-top:-14px;">'
+                'Digite um ID de ticket para ver o fluxo completo.'
+                '</div>',
+                unsafe_allow_html=True)
+
+    col_input, col_btn = st.columns([3, 1])
+
+    with col_input:
+        ticket_id = st.number_input(
+            'ID do Ticket',
+            min_value=1,
+            value=111239,
+            step=1,
+            key='arvore_ticket_id',
+            label_visibility='collapsed',
+        )
+
+    with col_btn:
+        buscar = st.button('🔍 Visualizar Árvore',
+                            use_container_width=True,
+                            key='btn_arvore')
+
+    if buscar:
+        import sqlite3 as _sql
+        from config import CAMINHO_BANCO
+
+        _conn = _sql.connect(CAMINHO_BANCO)
+        try:
+            render_arvore_ticket(ticket_id, _conn, df_analistas)
+        finally:
+            _conn.close()
 
     separador()
     

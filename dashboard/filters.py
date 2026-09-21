@@ -11,6 +11,28 @@ def aplicar_filtros(df):
 
     st.sidebar.markdown('### 🔍 Filtros')
 
+    # ==================== BUSCA POR ID ====================
+    st.sidebar.markdown('**🔎 Buscar por ID**')
+    busca_id = st.sidebar.text_input(
+        'Buscar por ID',
+        placeholder='Ex: 111239 (aceita vírgula)',
+        label_visibility='collapsed',
+        key='busca_id',
+    )
+    if busca_id.strip():
+        try:
+            ids_busca = [
+                int(x.strip())
+                for x in busca_id.split(',')
+                if x.strip().isdigit()
+            ]
+            if ids_busca:
+                df = df[df['id'].isin(ids_busca)]
+        except Exception:
+            pass
+
+    st.sidebar.markdown('---')
+
     # ==================== PERÍODO ====================
     if df['criado_data'].notna().any():
         data_min = df['criado_data'].min().date()
@@ -66,6 +88,35 @@ def aplicar_filtros(df):
     if resp_sel:
         df = df[df['responsavel_atual'].isin(resp_sel)]
 
+    # ==================== SOLICITANTE ====================
+    st.sidebar.markdown('**Solicitante**')
+    sol_opts = sorted([
+        s for s in df['solicitante'].dropna().unique()
+        if s and s != 'Não informado'
+    ])
+    sol_sel = st.sidebar.multiselect(
+        'Solicitante', options=sol_opts, default=[],
+        placeholder='Todos os solicitantes',
+        label_visibility='collapsed',
+    )
+    if sol_sel:
+        df = df[df['solicitante'].isin(sol_sel)]
+
+    # ---------- SÓ REINCIDENTES ----------
+    st.sidebar.markdown('**Só Reincidentes**')
+    reininc_sel = st.sidebar.radio(
+        'Só Reincidentes',
+        options=['Todos', 'Só reincidentes'],
+        index=0,
+        label_visibility='collapsed',
+        key='filtro_reinc',
+    )
+    if reininc_sel == 'Só reincidentes':
+        # Conta tickets por solicitante
+        contagem = df.groupby('solicitante')['id'].count()
+        reincidentes = contagem[contagem >= 2].index.tolist()
+        df = df[df['solicitante'].isin(reincidentes)]
+
     # ==================== TIPO DE EMPRESA ====================
     st.sidebar.markdown('**Tipo de Empresa**')
     empresa_opts = ['SPPREV', 'Atlantic', 'Externo', 'Outro']
@@ -110,7 +161,7 @@ def aplicar_filtros(df):
     elif backlog_sel == 'Fora do backlog' and 'backlog' in df.columns:
         df = df[df['backlog'] == 0]
 
-    # ==================== AÇÃO INTERNA (DESTAQUE) ====================
+    # ==================== AÇÃO INTERNA ====================
     st.sidebar.markdown(
         '<div style="border-top:2px solid #c9a666; margin:18px 0 12px 0; padding-top:10px;">'
         '<div style="font-size:11px; color:#c9a666; text-transform:uppercase; '
