@@ -198,34 +198,26 @@ def criar_navegador(headless=False):
 
 
 def realizar_login(navegador, usuario=None, senha=None):
+    """Realiza login no Help360 — sempre pergunta email e senha."""
     if not usuario:
-        import getpass as _gp
         usuario = input('Digite seu email (@sp.gov.br): ').strip()
-        if not usuario:
-            usuario = 'mmarcondes@sp.gov.br'
+
+    if not senha:
+        senha = getpass('Digite sua senha: ')
+
+    print(f'🔐 Login como: {usuario}')
 
     url_help = 'https://spprev.help360.com.br/users/sign_in'
     navegador.get(url_help)
     time.sleep(2)
 
+    # Preenche email e senha
     navegador.find_element(By.XPATH, '//*[@id="user_email"]').send_keys(usuario)
     navegador.find_element(By.XPATH, '//*[@id="user_password"]').send_keys(senha)
+
+    # Clica no botão de login
     navegador.find_element(By.XPATH, '//*[@id="new_user"]/input[3]').click()
-
-    # Aguarda redirecionar para a home
-    for _ in range(10):
-        time.sleep(1)
-        if 'sign_in' not in navegador.current_url.lower():
-            break
-
-    # Aquece a sessão: navega para a home e para a lista de tickets
-    try:
-        navegador.get('https://spprev.help360.com.br/')
-        time.sleep(2)
-        navegador.get('https://spprev.help360.com.br/tickets')
-        time.sleep(2)
-    except Exception:
-        pass
+    time.sleep(3)
 
 
 # ==================== PROTEÇÃO DE DADOS (LGPD) ====================
