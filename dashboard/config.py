@@ -34,3 +34,11 @@ MENU_PAGINAS = [
 
 # ==================== STATUS ====================
 STATUS_FECHADOS = ['Resolvido', 'Fechado', 'Cancelado', 'Duplicado']
+
+# ==================== OUTLIERS ====================
+# Limite para considerar outlier em análises de tempo
+# Tickets com mais dias que isso são excluídos de médias
+LIMITE_OUTLIER_DIAS = 365
+
+# Mínimo de dias em aberto para considerar "fantasma"
+LIMITE_FANTASMA_DIAS = 365

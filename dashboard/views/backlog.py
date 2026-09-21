@@ -10,6 +10,7 @@ from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
     botao_exportar, legenda_grafico, info_grafico,
+    filtrar_outliers, alerta_fantasmas, 
 )
 from config import COR_WARNING, COR_DANGER, STATUS_FECHADOS
 
@@ -25,11 +26,14 @@ def render(df):
         callout('success', 'OK', 'Sem tickets em aberto!')
         return
 
+    # Filtra outliers
+    df_aberto_clean, n_outliers = filtrar_outliers(df_aberto, 'dias_aberto')
+
     # ---------- Métricas ----------
-    aging = df_aberto['dias_aberto'].mean()
-    mais_antigo = df_aberto['dias_aberto'].max()
+    aging = df_aberto_clean['dias_aberto'].mean() if not df_aberto_clean.empty else 0
+    mais_antigo = df_aberto_clean['dias_aberto'].max() if not df_aberto_clean.empty else 0
     criticos = len(df_aberto[df_aberto['prioridade'] == 'Crítica'])
-    antigos_30 = len(df_aberto[df_aberto['dias_aberto'] > 30])
+    antigos_30 = len(df_aberto_clean[df_aberto_clean['dias_aberto'] > 30])
 
     # ---------- KPIs ----------
     col1, col2, col3, col4 = st.columns(4)
@@ -38,7 +42,8 @@ def render(df):
     with col2:
         kpi('Aging Médio', f'{aging:.0f}d',
             pill='Alto' if aging > 15 else 'OK',
-            pill_tipo='negative' if aging > 15 else 'positive')
+            pill_tipo='negative' if aging > 15 else 'positive',
+            ajuda=f'Exclui {n_outliers} > 365d' if n_outliers else None)
     with col3:
         kpi('Mais Antigo', f'{mais_antigo:.0f}d',
             pill='⚠️ > 30d' if mais_antigo > 30 else 'OK',
@@ -47,6 +52,9 @@ def render(df):
         kpi('Prioridade Crítica', f'{criticos}',
             pill='Atenção' if criticos > 0 else 'OK',
             pill_tipo='negative' if criticos > 0 else 'positive')
+
+    # Alerta de fantasmas
+    alerta_fantasmas(df_aberto)
 
     separador()
 

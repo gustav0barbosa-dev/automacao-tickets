@@ -9,6 +9,7 @@ from components import (
     kpi, hbar_list, callout, painel_title,
     separador, page_header, aplicar_tema_plotly,
     botao_exportar, legenda_grafico, info_grafico,
+    filtrar_outliers, alerta_fantasmas, 
 )
 from config import COR_GOLD, COR_BAR
 
@@ -33,6 +34,22 @@ def render(df):
     aging = df_aberto['dias_aberto'].mean() if not df_aberto.empty else 0
 
     # ---------- KPIs ----------
+    total = len(df)
+    resolvidos = len(df[df['status'].isin(['Resolvido', 'Fechado'])])
+    em_aberto = len(df[~df['status'].isin(['Resolvido', 'Fechado', 'Cancelado', 'Duplicado'])])
+
+    # SLA
+    df_sla = df[df['sla_status'].isin(['cumprido', 'estourado'])]
+    cumpridos = len(df_sla[df_sla['sla_status'] == 'cumprido'])
+    estourados = len(df_sla[df_sla['sla_status'] == 'estourado'])
+    total_sla = cumpridos + estourados
+    perc_sla = (cumpridos / total_sla * 100) if total_sla else 0
+
+    # Aging com filtro de outlier
+    df_aberto = df[~df['status'].isin(['Resolvido', 'Fechado', 'Cancelado', 'Duplicado'])].copy()
+    df_aberto_clean, n_outliers = filtrar_outliers(df_aberto, 'dias_aberto')
+    aging = df_aberto_clean['dias_aberto'].mean() if not df_aberto_clean.empty else 0
+
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         kpi('Total de Tickets', f'{total}')
@@ -48,9 +65,13 @@ def render(df):
             pill_tipo='negative' if perc_geral < 50 else 'neutral',
             ajuda=f'{cumpridos} cumpridos · {estourados} estourados')
     with col5:
-        kpi('Aging Médio', f'{aging:.1f}d',
+        kpi('Aging Médio', f'{aging:.0f}d',
             pill='Alto' if aging > 15 else 'OK',
-            pill_tipo='negative' if aging > 15 else 'positive')
+            pill_tipo='negative' if aging > 15 else 'positive',
+            ajuda=f'Exclui {n_outliers} tickets > 365 dias' if n_outliers else None)
+
+    # Alerta de fantasmas
+    alerta_fantasmas(df_aberto)
 
     separador()
 

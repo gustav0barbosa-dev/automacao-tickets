@@ -245,3 +245,71 @@ def info_grafico(texto):
     )
 
     st.markdown(html, unsafe_allow_html=True)
+
+# ==================== HELPERS DE OUTLIERS ====================
+from config import LIMITE_OUTLIER_DIAS, LIMITE_FANTASMA_DIAS
+
+
+def filtrar_outliers(df, coluna='dias_aberto', limite=LIMITE_OUTLIER_DIAS):
+    """
+    Filtra outliers de um DataFrame.
+
+    Returns:
+        (df_clean, n_removidos)
+    """
+    if df.empty or coluna not in df.columns:
+        return df, 0
+
+    df_clean = df[df[coluna] <= limite].copy()
+    n_removidos = len(df) - len(df_clean)
+
+    return df_clean, n_removidos
+
+
+def alerta_fantasmas(df, coluna='dias_aberto', limite=LIMITE_FANTASMA_DIAS):
+    """
+    Renderiza um alerta sobre tickets "fantasmas" (muito antigos).
+
+    Args:
+        df: DataFrame com os tickets
+        coluna: coluna de dias
+        limite: limite de dias para considerar fantasma
+    """
+    if df.empty or coluna not in df.columns:
+        return
+
+    df_fantasmas = df[df[coluna] > limite].copy()
+    n = len(df_fantasmas)
+
+    if n == 0:
+        return
+
+    # Card de alerta
+    html = (
+        f'<div style="display:flex;gap:12px;align-items:center;'
+        f'padding:14px 18px;margin-top:16px;'
+        f'background:rgba(224,134,122,.08);'
+        f'border:1px solid rgba(224,134,122,.2);'
+        f'border-left:3px solid #e0867a;border-radius:8px;">'
+        f'<div style="font-size:20px;">👻</div>'
+        f'<div style="flex:1;">'
+        f'<div style="font-size:13px;color:#e0867a;font-weight:600;margin-bottom:2px;">'
+        f'{n} ticket(s) em aberto há mais de {limite} dias'
+        f'</div>'
+        f'<div style="font-size:12px;color:#9299a6;">'
+        f'Estes tickets foram excluídos do cálculo de média. '
+        f'Considere verificar e fechar os mais antigos.'
+        f'</div>'
+        f'</div>'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+    # Expander com detalhes
+    with st.expander(f'Ver os {n} tickets fantasmas'):
+        tabela = df_fantasmas.nlargest(20, coluna)[
+            ['id', 'titulo', 'status', 'responsavel_atual', coluna]
+        ].copy()
+        tabela.columns = ['ID', 'Título', 'Status', 'Responsável', 'Dias']
+        tabela['Título'] = tabela['Título'].str.slice(0, 60)
+        st.dataframe(tabela, use_container_width=True, hide_index=True)

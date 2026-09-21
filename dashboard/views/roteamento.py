@@ -14,6 +14,7 @@ from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
     botao_exportar, legenda_grafico, info_grafico,
+    filtrar_outliers, alerta_fantasmas,
 )
 from config import COR_BAR, COR_DANGER, COR_TEXT_SEC, CAMINHO_BANCO
 
@@ -104,6 +105,7 @@ def render(df):
     movs_sorted['horas_parado'] = (
         movs_sorted['data_movimentacao'] - movs_sorted['data_anterior']
     ).dt.total_seconds() / 3600
+
 
     gaps = movs_sorted.dropna(subset=['horas_parado'])
     gaps = gaps[gaps['horas_parado'] > 24].copy()

@@ -10,6 +10,7 @@ from components import (
     page_header, kpi, callout, separador,
     hbar_list, painel_title, aplicar_tema_plotly,
     botao_exportar, legenda_grafico, info_grafico,
+    filtrar_outliers, alerta_fantasmas,
 )
 from config import COR_BAR, COR_DANGER, COR_TEXT_SEC
 
@@ -29,12 +30,15 @@ def render(df):
         callout('warning', 'Atenção', 'Sem responsáveis identificados no período.')
         return
 
+    # ---------- FILTRA OUTLIERS (agora sim, df_resp existe) ----------
+    df_resp_clean = df_resp[df_resp['dias_resolucao'] <= 365].copy()
+
     # ---------- Agrega por responsável ----------
-    agg = df_resp.groupby('responsavel_atual').agg(
+    agg = df_resp_clean.groupby('responsavel_atual').agg(
         total=('id', 'count'),
         resolvidos=('status', lambda x: x.isin(['Resolvido', 'Fechado']).sum()),
         em_aberto=('status', lambda x: (
-            ~x.isin(['Resolvido', 'Fechado', 'Cancelado', 'Duplicado'])
+            ~x.isin(['Resolvido', 'Fechado', 'Cancelado'])
         ).sum()),
         dias_medio=('dias_resolucao', 'mean'),
     ).reset_index()
