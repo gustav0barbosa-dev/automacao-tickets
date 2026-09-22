@@ -52,6 +52,21 @@ def health():
     except Exception as e:
         return jsonify({'status': 'unhealthy', 'error': str(e)}), 500
 
+@app.route('/version')
+def version():
+    """Retorna a versão atual do código (para debug)."""
+    import inspect
+    try:
+        codigo = inspect.getsource(upload)
+        tem_conversao = 'colunas_int' in codigo
+    except Exception:
+        tem_conversao = False
+
+    return jsonify({
+        'versao': 'v2-com-conversao' if tem_conversao else 'v1-sem-conversao',
+        'tem_conversao_int': tem_conversao,
+        'timestamp': datetime.now().isoformat(),
+    })
 
 @app.route('/upload', methods=['POST'])
 def upload():
