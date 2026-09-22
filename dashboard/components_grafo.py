@@ -227,26 +227,36 @@ def render_legenda():
 
 
 # ==================== ÁRVORE (networkx + matplotlib) ====================
-def buscar_ticket(conn, ticket_id):
-    """Busca um ticket + suas movimentações."""
-    ticket = pd.read_sql('''
-        SELECT id, titulo, status, responsavel_atual, solicitante,
-               categoria, prioridade, criado_data, alterado_data
-        FROM tickets WHERE id = ?
-    ''', conn, params=(int(ticket_id),))
+def buscar_ticket(ticket_id):
+    """Busca um ticket + suas movimentações no PostgreSQL."""
+    from data import get_engine
+    import pandas as pd
+
+    engine = get_engine()
+    if engine is None:
+        return None, None
+
+    # Busca ticket
+    ticket = pd.read_sql(
+        f"SELECT id, titulo, status, responsavel_atual, solicitante, "
+        f"categoria, prioridade, criado_data, alterado_data "
+        f"FROM tickets WHERE id = {int(ticket_id)}",
+        engine
+    )
 
     if ticket.empty:
         return None, None
 
-    movs = pd.read_sql('''
-        SELECT data_movimentacao, autor, para_status, tipo
-        FROM movimentacoes
-        WHERE ticket_id = ?
-        ORDER BY data_movimentacao ASC
-    ''', conn, params=(int(ticket_id),))
+    # Busca movimentações
+    movs = pd.read_sql(
+        f"SELECT data_movimentacao, autor, para_status, tipo "
+        f"FROM movimentacoes "
+        f"WHERE ticket_id = {int(ticket_id)} "
+        f"ORDER BY data_movimentacao ASC",
+        engine
+    )
 
     return ticket.iloc[0], movs
-
 
 def gerar_arvore_ticket_matplotlib(ticket, movs, analistas):
     """
@@ -406,9 +416,9 @@ def gerar_arvore_ticket_matplotlib(ticket, movs, analistas):
     return fig
 
 
-def render_arvore_ticket(ticket_id, conn, df_analistas):
-    """Renderiza a árvore de um ticket no Streamlit (sem Graphviz)."""
-    ticket, movs = buscar_ticket(conn, ticket_id)
+def render_arvore_ticket_sqlalchemy(ticket_id, df_analistas):
+    """Renderiza a árvore de um ticket no Streamlit (versão PostgreSQL)."""
+    ticket, movs = buscar_ticket(ticket_id)
 
     if ticket is None:
         st.warning(f'❌ Ticket #{ticket_id} não encontrado.')

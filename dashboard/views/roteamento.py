@@ -7,7 +7,7 @@ import pandas as pd
 import plotly.express as px
 
 from components_grafo import (
-    render_grafo, render_legenda, render_arvore_ticket,
+    render_grafo, render_legenda, render_arvore_ticket_sqlalchemy,
 )
 
 from components import (
@@ -16,7 +16,8 @@ from components import (
     botao_exportar, legenda_grafico, info_grafico,
     filtrar_outliers, alerta_fantasmas,
 )
-from config import COR_BAR, COR_DANGER, COR_TEXT_SEC, CAMINHO_BANCO
+from config import COR_BAR, COR_DANGER, COR_TEXT_SEC
+from data import carregar_movimentacoes, carregar_mensagens, carregar_analistas
 
 
 def render(df):
@@ -286,17 +287,15 @@ def render(df):
                             key='btn_arvore')
 
     if buscar:
-        import sqlite3 as _sql
-        from config import CAMINHO_BANCO
-
-        _conn = _sql.connect(CAMINHO_BANCO)
         try:
-            render_arvore_ticket(ticket_id, _conn, df_analistas)
-        finally:
-            _conn.close()
+            render_arvore_ticket_sqlalchemy(ticket_id, df_analistas)
+        except Exception as e:
+            st.error(f'❌ Erro ao renderizar árvore: {e}')
 
     separador()
-    
+
+    # ==================== BOTÃO EXPORTAR ====================
     col_esq, col_dir = st.columns([4, 1])
     with col_dir:
-        botao_exportar(movs_ok, 'roteamento_movimentacoes', key='export_roteamento')
+        botao_exportar(movs_ok, 'roteamento_movimentacoes',
+                        key='export_roteamento')
