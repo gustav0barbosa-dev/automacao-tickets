@@ -57,64 +57,73 @@ def health():
 def upload():
     """
     Recebe um CSV via multipart/form-data e insere na tabela especificada.
-    
-    Parâmetros:
-        - file: arquivo CSV
-        - tabela: nome da tabela de destino
     """
     try:
         # 1. Validações
         if 'file' not in request.files:
             return jsonify({'erro': 'Nenhum arquivo enviado'}), 400
-        
+
         arquivo = request.files['file']
         tabela = request.form.get('tabela')
-        
+
         if not tabela:
             return jsonify({'erro': 'Parâmetro "tabela" é obrigatório'}), 400
-        
+
         if arquivo.filename == '':
             return jsonify({'erro': 'Nome do arquivo vazio'}), 400
-        
+
         # 2. Lê o CSV
         conteudo = arquivo.read()
         df = pd.read_csv(io.BytesIO(conteudo))
         total_linhas = len(df)
-        
+
         if total_linhas == 0:
             return jsonify({'erro': 'CSV vazio'}), 400
-        
-        # 3. Converte datas e limpa NaN
+
+        # 3. Converte datas
         for col in df.columns:
             if 'data' in col.lower() or 'previsao' in col.lower():
                 df[col] = pd.to_datetime(df[col], errors='coerce')
-        
+
+        # 4. Converte colunas inteiras (evita "0.0" em INTEGER)
+        colunas_int = [
+            'id', 'ticket_id', 'enriquecido', 'respondido', 'acao_interna',
+            'pendente_usuario', 'backlog', 'dias_uteis_resolucao',
+            'sla_criticidade_ok', 'meta_diaria', 'ativo',
+            'primeira_acao_responsavel', 'tickets_total', 'tickets_novos',
+            'tickets_atualizados', 'tickets_mudaram', 'tickets_enriquecidos',
+        ]
+        for col in df.columns:
+            if col in colunas_int:
+                # Converte para Int64 (aceita NULL) e depois para object
+                df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
+
+        # 5. Substitui NaN por None
         df = df.where(pd.notna(df), None)
-        
-        # 4. Insere no banco usando COPY (rápido para grandes volumes)
+
+        # 6. Insere no banco
         conn = conectar_banco()
         cursor = conn.cursor()
-        
-        # Constrói o comando COPY
+
         colunas = ','.join(df.columns)
         buffer = io.StringIO()
-        df.to_csv(buffer, index=False, header=False)
+        df.to_csv(buffer, index=False, header=False, na_rep='')
         buffer.seek(0)
-        
-        sql = f"COPY {tabela} ({colunas}) FROM STDIN WITH (FORMAT csv, HEADER false)"
+
+        sql = f"COPY {tabela} ({colunas}) FROM STDIN WITH (FORMAT csv, HEADER false, NULL '')"
         cursor.copy_expert(sql, buffer)
-        
+
         conn.commit()
         cursor.close()
         conn.close()
-        
+
         return jsonify({
             'status': 'ok',
             'tabela': tabela,
             'linhas_inseridas': total_linhas,
             'timestamp': datetime.now().isoformat(),
         })
-        
+
     except Exception as e:
         import traceback
         traceback.print_exc()
