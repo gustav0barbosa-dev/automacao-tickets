@@ -59,7 +59,6 @@ def upload():
     Recebe um CSV via multipart/form-data e insere na tabela especificada.
     """
     try:
-        # 1. Validações
         if 'file' not in request.files:
             return jsonify({'erro': 'Nenhum arquivo enviado'}), 400
 
@@ -72,7 +71,7 @@ def upload():
         if arquivo.filename == '':
             return jsonify({'erro': 'Nome do arquivo vazio'}), 400
 
-        # 2. Lê o CSV
+        # Lê o CSV
         conteudo = arquivo.read()
         df = pd.read_csv(io.BytesIO(conteudo))
         total_linhas = len(df)
@@ -80,12 +79,12 @@ def upload():
         if total_linhas == 0:
             return jsonify({'erro': 'CSV vazio'}), 400
 
-        # 3. Converte datas
+        # Converte datas
         for col in df.columns:
             if 'data' in col.lower() or 'previsao' in col.lower():
                 df[col] = pd.to_datetime(df[col], errors='coerce')
 
-        # 4. Converte colunas inteiras (evita "0.0" em INTEGER)
+        # Converte colunas inteiras (evita "0.0" em INTEGER)
         colunas_int = [
             'id', 'ticket_id', 'enriquecido', 'respondido', 'acao_interna',
             'pendente_usuario', 'backlog', 'dias_uteis_resolucao',
@@ -95,13 +94,12 @@ def upload():
         ]
         for col in df.columns:
             if col in colunas_int:
-                # Converte para Int64 (aceita NULL) e depois para object
                 df[col] = pd.to_numeric(df[col], errors='coerce').astype('Int64')
 
-        # 5. Substitui NaN por None
+        # Substitui NaN por None
         df = df.where(pd.notna(df), None)
 
-        # 6. Insere no banco
+        # Insere no banco
         conn = conectar_banco()
         cursor = conn.cursor()
 
