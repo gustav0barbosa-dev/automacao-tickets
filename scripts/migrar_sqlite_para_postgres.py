@@ -1,8 +1,6 @@
 """
-Migra os dados do SQLite local (dados/tickets.db) para o PostgreSQL do Neon.
-
-Uso:
-    python scripts/migrar_sqlite_para_neon.py
+Migra os dados do SQLite local para o PostgreSQL (Railway).
+Dropa as tabelas do Postgres e recria com o schema do SQLite.
 """
 import os
 import sqlite3
@@ -15,10 +13,13 @@ from sqlalchemy import create_engine, text
 RAIZ = Path(__file__).resolve().parent.parent
 SQLITE_PATH = RAIZ / 'dados' / 'tickets.db'
 
+# Tabelas que NAO devem ser migradas (internas do SQLite)
+TABELAS_IGNORADAS = ['sqlite_sequence']
+
 
 def obter_database_url():
-    """Tenta ler a DATABASE_URL dos secrets do Streamlit ou da env."""
-    # 1. Le o .streamlit/secrets.toml manualmente (sem tomllib, para lidar com URL sem aspas)
+    """Le a DATABASE_URL dos secrets (local) ou env (Railway)."""
+    # 1. Secrets local
     secrets_path = RAIZ / '.streamlit' / 'secrets.toml'
     if secrets_path.exists():
         try:
@@ -26,16 +27,14 @@ def obter_database_url():
                 for linha in f:
                     linha = linha.strip()
                     if linha.startswith('url') and '=' in linha:
-                        # Pega o valor apos o '='
                         valor = linha.split('=', 1)[1].strip()
-                        # Remove aspas se houver
                         valor = valor.strip('"').strip("'")
                         if valor.startswith('postgresql://') or valor.startswith('postgres://'):
                             return valor
         except Exception as e:
             print(f'AVISO: erro lendo secrets.toml: {e}')
 
-    # 2. Variavel de ambiente
+    # 2. Variavel de ambiente (Railway)
     url = os.environ.get('DATABASE_URL')
     if url:
         return url
@@ -44,7 +43,6 @@ def obter_database_url():
 
 
 def limpar_url(url):
-    """Remove parâmetros problemáticos."""
     return (url
             .replace('&channel_binding=require', '')
             .replace('?channel_binding=require&', '?')
@@ -53,75 +51,81 @@ def limpar_url(url):
 
 def listar_tabelas_sqlite(conn):
     cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    return [r[0] for r in cur.fetchall()]
+    return [r[0] for r in cur.fetchall() if r[0] not in TABELAS_IGNORADAS]
+
+
+def drop_tabelas_postgres(pg_engine, tabelas):
+    """Dropa as tabelas do Postgres (com CASCADE) para recriar do zero."""
+    with pg_engine.begin() as conn:
+        for tabela in tabelas:
+            try:
+                conn.execute(text(f'DROP TABLE IF EXISTS {tabela} CASCADE'))
+                print(f'   - Tabela {tabela} dropada')
+            except Exception as e:
+                print(f'   - AVISO: erro dropando {tabela}: {e}')
 
 
 def migrar_tabela(sqlite_conn, pg_engine, tabela):
-    """Lê uma tabela do SQLite e insere no PostgreSQL."""
-    print(f'\n📦 Migrando tabela: {tabela}')
+    """Le uma tabela do SQLite e insere no PostgreSQL."""
+    print(f'\n[MIGRANDO] Tabela: {tabela}')
 
     df = pd.read_sql(f'SELECT * FROM {tabela}', sqlite_conn)
-    print(f'   └─ {len(df)} registros lidos do SQLite')
+    print(f'   - {len(df)} registros lidos do SQLite')
 
     if df.empty:
-        print(f'   └─ Tabela vazia, pulando.')
+        print(f'   - Tabela vazia, pulando.')
         return 0
 
-    # Limpa a tabela no Postgres
-    with pg_engine.begin() as conn:
-        try:
-            conn.execute(text(f'TRUNCATE TABLE {tabela} RESTART IDENTITY CASCADE'))
-            print(f'   └─ Tabela {tabela} limpa no Postgres')
-        except Exception as e:
-            print(f'   └─ ⚠️ Não foi possível truncar (talvez não exista): {e}')
-
-    # Insere (em chunks para não sobrecarregar)
+    # Insere em chunks (to_sql cria a tabela se nao existir)
     try:
-        df.to_sql(tabela, pg_engine, if_exists='append', index=False, chunksize=1000)
-        print(f'   └─ ✅ {len(df)} registros inseridos no Postgres')
+        df.to_sql(tabela, pg_engine, if_exists='append', index=False, chunksize=500)
+        print(f'   - OK: {len(df)} registros inseridos no Postgres')
         return len(df)
     except Exception as e:
-        print(f'   └─ ❌ Erro ao inserir: {e}')
+        print(f'   - ERRO ao inserir: {e}')
         return 0
 
 
 def main():
     print('=' * 60)
-    print('MIGRAÇÃO SQLITE → POSTGRESQL (NEON)')
+    print('MIGRACAO SQLITE -> POSTGRESQL')
     print('=' * 60)
 
-    # 1. Verifica o SQLite
     if not SQLITE_PATH.exists():
-        print(f'❌ SQLite não encontrado: {SQLITE_PATH}')
+        print(f'ERRO: SQLite nao encontrado: {SQLITE_PATH}')
         return False
-    print(f'✅ SQLite: {SQLITE_PATH}')
+    print(f'OK SQLite: {SQLITE_PATH}')
 
-    # 2. Obtém a URL do Postgres
     url = obter_database_url()
     if not url:
-        print('❌ DATABASE_URL não encontrada (.streamlit/secrets.toml ou env)')
+        print('ERRO: DATABASE_URL nao encontrada')
         return False
     url = limpar_url(url)
-    print(f'✅ Postgres: {url[:60]}...')
+    print(f'OK Postgres: {url[:60]}...')
 
-    # 3. Conecta no SQLite
     sqlite_conn = sqlite3.connect(SQLITE_PATH)
 
-    # 4. Conecta no Postgres
+    # Conecta no Postgres
     try:
-        pg_engine = create_engine(url, pool_pre_ping=True)
+        pg_engine = create_engine(url, pool_pre_ping=True, connect_args={'connect_timeout': 15})
         with pg_engine.connect() as conn:
             conn.execute(text('SELECT 1'))
-        print('✅ Conexão com Postgres OK')
+        print('OK Conexao com Postgres')
     except Exception as e:
-        print(f'❌ Erro ao conectar no Postgres: {e}')
+        print(f'ERRO ao conectar no Postgres: {e}')
+        sqlite_conn.close()
         return False
 
-    # 5. Lista tabelas
+    # Lista tabelas
     tabelas = listar_tabelas_sqlite(sqlite_conn)
-    print(f'\n📋 Tabelas encontradas no SQLite: {tabelas}')
+    print(f'\nTabelas encontradas no SQLite: {tabelas}')
 
-    # 6. Migra cada tabela
+    # DROPA as tabelas do Postgres (para recriar com o schema correto)
+    print('\n[FASE 1] Dropando tabelas antigas do Postgres...')
+    drop_tabelas_postgres(pg_engine, tabelas)
+
+    # MIGRA
+    print('\n[FASE 2] Inserindo dados...')
     total = 0
     for tabela in tabelas:
         total += migrar_tabela(sqlite_conn, pg_engine, tabela)
@@ -131,7 +135,7 @@ def main():
 
     print()
     print('=' * 60)
-    print(f'✅ MIGRAÇÃO CONCLUÍDA — {total} registros migrados')
+    print(f'CONCLUIDO - {total} registros migrados')
     print('=' * 60)
     return True
 
