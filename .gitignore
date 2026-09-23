@@ -23,3 +23,6 @@ dados/*.csv
 # Cópias acidentais
 * copy.py
 * copy.ipynb
+
+# Libera o banco comprimido para deploy no Railway
+!dados/tickets.db.gz
