@@ -26,19 +26,14 @@ from data import carregar_movimentacoes
 # ============================================================
 # ANÁLISE DE REABERTURA
 # ============================================================
-def detectar_reaberturas(df_movs):
+def detectar_reaberturas(df_movs, data_inicio=None, data_fim=None):
     """
-    Detecta tickets que foram reabertos.
-    Considera reabertura quando:
-      - Status anterior era 'Resolvido' ou 'Fechado'
-      - Status novo é 'Em atendimento' ou 'Aguardando confirmação do usuário'
-
-    Retorna:
-        DataFrame com colunas:
-            - ticket_id
-            - reaberto_vezes
-            - data_primeira_reabertura
-            - data_ultima_reabertura
+    Detecta tickets que foram reabertos no período.
+    
+    Uma reabertura = de_status em ('Resolvido', 'Fechado')
+                 E para_status em ('Em atendimento', 'Aguardando confirmação do usuário')
+    
+    Filtra por data_movimentacao dentro do período [data_inicio, data_fim].
     """
     if df_movs.empty:
         return pd.DataFrame(columns=[
@@ -46,17 +41,30 @@ def detectar_reaberturas(df_movs):
             'data_primeira_reabertura', 'data_ultima_reabertura'
         ])
 
-    # Filtra movimentações que são reaberturas
     df = df_movs.copy()
-    df = df.dropna(subset=['de_status', 'para_status', 'data_movimentacao'])
-    df = df.sort_values(['ticket_id', 'data_movimentacao'])
+    df['data_movimentacao'] = pd.to_datetime(df['data_movimentacao'], errors='coerce')
+    df = df.dropna(subset=['data_movimentacao'])
 
-    mask_reabertura = (
-        df['de_status'].isin(['Resolvido', 'Fechado']) &
-        df['para_status'].isin(['Em atendimento', 'Aguardando confirmação do usuário'])
-    )
+    # Filtro por período (data da movimentação)
+    if data_inicio is not None:
+        df = df[df['data_movimentacao'].dt.date >= data_inicio]
+    if data_fim is not None:
+        df = df[df['data_movimentacao'].dt.date <= data_fim]
 
-    df_reab = df[mask_reabertura]
+    if df.empty:
+        return pd.DataFrame(columns=[
+            'ticket_id', 'reaberto_vezes',
+            'data_primeira_reabertura', 'data_ultima_reabertura'
+        ])
+
+    # Filtra apenas as reaberturas
+    status_reaberto = ['Resolvido', 'Fechado']
+    status_voltou = ['Em atendimento', 'Aguardando confirmação do usuário']
+
+    df_reab = df[
+        df['de_status'].isin(status_reaberto) &
+        df['para_status'].isin(status_voltou)
+    ].copy()
 
     if df_reab.empty:
         return pd.DataFrame(columns=[
@@ -64,14 +72,14 @@ def detectar_reaberturas(df_movs):
             'data_primeira_reabertura', 'data_ultima_reabertura'
         ])
 
-    # Agrega por ticket
-    agg = df_reab.groupby('ticket_id').agg(
-        reaberto_vezes=('data_movimentacao', 'count'),
+    # Agrupa por ticket
+    resultado = df_reab.groupby('ticket_id').agg(
+        reaberto_vezes=('id', 'count'),
         data_primeira_reabertura=('data_movimentacao', 'min'),
         data_ultima_reabertura=('data_movimentacao', 'max'),
     ).reset_index()
 
-    return agg
+    return resultado
 
 
 # ============================================================
@@ -307,13 +315,13 @@ def render(df):
                 'Primeira Reabertura', 'Última Reabertura'
             ]
 
-            tabela['Título'] = tabela['Título'].str.slice(0, 50)
             tabela['Primeira Reabertura'] = pd.to_datetime(
-                tabela['Primeira Reabertura']
-            ).dt.strftime('%d/%m/%Y %H:%M')
+                tabela['Primeira Reabertura'], errors='coerce'
+            ).dt.strftime('%d/%m/%Y %H:%M').fillna('—')
+
             tabela['Última Reabertura'] = pd.to_datetime(
-                tabela['Última Reabertura']
-            ).dt.strftime('%d/%m/%Y %H:%M')
+                tabela['Última Reabertura'], errors='coerce'
+            ).dt.strftime('%d/%m/%Y %H:%M').fillna('—')
 
             st.dataframe(tabela, use_container_width=True, hide_index=True)
 

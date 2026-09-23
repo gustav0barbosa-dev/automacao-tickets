@@ -215,39 +215,51 @@ def parsear_historico(conteudo_bytes, ticket_id):
 
 
 def persistir_movimentacoes(conn, ticket_id, df_hist):
-    """Persiste movimentações extraídas do Excel."""
+    """Persiste movimentações extraídas do Excel, ordenando por data
+    e preenchendo de_status com o status anterior."""
     if df_hist is None or df_hist.empty:
         return 0
 
     conn.execute('DELETE FROM movimentacoes WHERE ticket_id = ?', (ticket_id,))
 
-    inseridos = 0
-    for _, row in df_hist.iterrows():
-        try:
-            data_mov = None
-            for col in ['Alterado Data', 'Criado Data']:
-                if col in df_hist.columns:
-                    data_mov = parsear_data_br(row.get(col))
-                    if data_mov is not None:
-                        break
+    # Ordena por data (mais antiga primeiro)
+    df = df_hist.copy()
+    df['_data_ordem'] = df['Alterado Data'].apply(parsear_data_br)
+    df = df.sort_values('_data_ordem', ascending=True).reset_index(drop=True)
 
-            status = row.get('Status') if 'Status' in df_hist.columns else None
-            autor = row.get('Alterado por') if 'Alterado por' in df_hist.columns else None
-            responsavel = row.get('Responsável') if 'Responsável' in df_hist.columns else None
+    inseridos = 0
+    status_anterior = None
+
+    for _, row in df.iterrows():
+        try:
+            data_mov = parsear_data_br(row.get('Alterado Data'))
+
+            status = row.get('Status')
+            status = str(status).strip() if pd.notna(status) else None
+
+            autor = row.get('Alterado por')
+            autor = str(autor).strip() if pd.notna(autor) else None
+
+            responsavel = row.get('Responsável')
+            responsavel = str(responsavel).strip() if pd.notna(responsavel) else None
 
             conn.execute('''
                 INSERT INTO movimentacoes
-                    (ticket_id, data_movimentacao, autor, tipo, para_status, comentario)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    (ticket_id, data_movimentacao, autor, tipo, de_status, para_status, comentario)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (
                 ticket_id,
                 data_mov.strftime('%Y-%m-%d %H:%M:%S') if data_mov is not None else None,
                 autor,
                 'historico',
+                status_anterior,
                 status,
                 f'Responsável: {responsavel}' if responsavel else None,
             ))
             inseridos += 1
+
+            if status:
+                status_anterior = status
         except Exception as e:
             log(f'Erro persistindo mov. do #{ticket_id}: {e}', 'AVISO')
 
