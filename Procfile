@@ -1,1 +1,1 @@
-web: python scripts/descomprimir_db.py && python scripts/migrar_sqlite_para_postgres.py && streamlit run dashboard/app.py --server.port $PORT --server.address 0.0.0.0
+web: python scripts/descomprimir_db.py && streamlit run dashboard/app.py --server.port $PORT --server.address 0.0.0.0

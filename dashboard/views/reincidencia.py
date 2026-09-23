@@ -28,12 +28,10 @@ from data import carregar_movimentacoes
 # ============================================================
 def detectar_reaberturas(df_movs, data_inicio=None, data_fim=None):
     """
-    Detecta tickets que foram reabertos no período.
+    Detecta tickets reabertos usando de_status e para_status.
     
-    Uma reabertura = de_status em ('Resolvido', 'Fechado')
-                 E para_status em ('Em atendimento', 'Aguardando confirmação do usuário')
-    
-    Filtra por data_movimentacao dentro do período [data_inicio, data_fim].
+    Reabertura = de_status em ('Resolvido', 'Fechado')
+             E para_status em ('Em atendimento', 'Aguardando confirmação do usuário')
     """
     if df_movs.empty:
         return pd.DataFrame(columns=[
@@ -43,21 +41,13 @@ def detectar_reaberturas(df_movs, data_inicio=None, data_fim=None):
 
     df = df_movs.copy()
     df['data_movimentacao'] = pd.to_datetime(df['data_movimentacao'], errors='coerce')
-    df = df.dropna(subset=['data_movimentacao'])
 
-    # Filtro por período (data da movimentação)
-    if data_inicio is not None:
-        df = df[df['data_movimentacao'].dt.date >= data_inicio]
-    if data_fim is not None:
-        df = df[df['data_movimentacao'].dt.date <= data_fim]
+    # Normaliza strings (remove espaços, converte para str)
+    df['de_status'] = df['de_status'].astype(str).str.strip()
+    df['para_status'] = df['para_status'].astype(str).str.strip()
+    df['ticket_id'] = df['ticket_id'].astype(str)
 
-    if df.empty:
-        return pd.DataFrame(columns=[
-            'ticket_id', 'reaberto_vezes',
-            'data_primeira_reabertura', 'data_ultima_reabertura'
-        ])
-
-    # Filtra apenas as reaberturas
+    # Filtro de reabertura
     status_reaberto = ['Resolvido', 'Fechado']
     status_voltou = ['Em atendimento', 'Aguardando confirmação do usuário']
 
@@ -72,7 +62,6 @@ def detectar_reaberturas(df_movs, data_inicio=None, data_fim=None):
             'data_primeira_reabertura', 'data_ultima_reabertura'
         ])
 
-    # Agrupa por ticket
     resultado = df_reab.groupby('ticket_id').agg(
         reaberto_vezes=('id', 'count'),
         data_primeira_reabertura=('data_movimentacao', 'min'),
@@ -248,7 +237,7 @@ def render(df):
             df_temp['id_str'] = df_temp['id'].astype(str)
             df_reab_full = df_reab_filtrado.merge(
                 df_temp[['id_str', 'titulo', 'status', 'categoria', 'prioridade',
-                         'responsavel_atual', 'responsavel_empresa']],
+                        'responsavel_atual', 'responsavel_empresa']],
                 left_on='ticket_id', right_on='id_str', how='left'
             )
             df_reab_full['id'] = df_reab_full['ticket_id']
