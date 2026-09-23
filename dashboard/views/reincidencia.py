@@ -204,11 +204,16 @@ def render(df):
         callout('info', 'Info',
                 'Sem movimentações capturadas. Execute o Programa5 para enriquecer.')
     else:
-        # Detecta reaberturas
+        # Detecta reaberturas (SEM filtro de período)
         df_reab = detectar_reaberturas(df_movs)
 
-        # Filtra os tickets reabertos que estão no df filtrado
-        df_reab_filtrado = df_reab[df_reab['ticket_id'].isin(df['id'])]
+        # ---------- NORMALIZA TIPOS (correção do bug) ----------
+        if not df_reab.empty:
+            df_reab['ticket_id'] = df_reab['ticket_id'].astype(str)
+            ids_filtrados = set(df['id'].astype(str).tolist())
+            df_reab_filtrado = df_reab[df_reab['ticket_id'].isin(ids_filtrados)].copy()
+        else:
+            df_reab_filtrado = df_reab
 
         # KPIs
         total_tickets = len(df)
@@ -238,11 +243,15 @@ def render(df):
                     'Nenhum ticket foi reaberto após ser marcado como Resolvido ou Fechado.')
         else:
             # Enriquecer com dados do ticket
+            # Garante que o merge funcione (ambos como str)
+            df_temp = df.copy()
+            df_temp['id_str'] = df_temp['id'].astype(str)
             df_reab_full = df_reab_filtrado.merge(
-                df[['id', 'titulo', 'status', 'categoria', 'prioridade',
-                    'responsavel_atual', 'responsavel_empresa']],
-                left_on='ticket_id', right_on='id', how='left'
+                df_temp[['id_str', 'titulo', 'status', 'categoria', 'prioridade',
+                         'responsavel_atual', 'responsavel_empresa']],
+                left_on='ticket_id', right_on='id_str', how='left'
             )
+            df_reab_full['id'] = df_reab_full['ticket_id']
 
             # ---------- Distribuição: quantas vezes cada ticket foi reaberto ----------
             col_a, col_b = st.columns(2)
@@ -335,13 +344,11 @@ def render(df):
                         f'<b>{int(pior_ticket["reaberto_vezes"])} vezes</b>. '
                         f'Verifique o histórico.')
 
-            # Alerta de taxa alta
             if taxa_reab > 15:
                 callout('warning', 'Atenção',
                         f'Taxa de reabertura em <b>{taxa_reab:.1f}%</b> — '
                         f'acima do ideal (10%). Pode indicar problema na qualidade da resolução.')
 
-            # Legenda
             st.markdown('')
             legenda_grafico([
                 {'cor': COR_SUCCESS, 'label': 'Sem reabertura', 'tipo': 'circulo'},
