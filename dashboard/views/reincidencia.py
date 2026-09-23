@@ -188,7 +188,7 @@ def render(df):
     separador()
 
     # ============================================================
-    # SEÇÃO 2 — REABERTURA
+    # SEÇÃO 2 — REABERTURA (DEBUG)
     # ============================================================
     st.markdown('## 🔄 Seção 2 — Reabertura de Tickets')
     st.markdown('<div class="page-caption" style="margin-top:-14px;">'
@@ -200,161 +200,46 @@ def render(df):
     # Carrega movimentações
     df_movs = carregar_movimentacoes()
 
-    if df_movs.empty:
-        callout('info', 'Info',
-                'Sem movimentações capturadas. Execute o Programa5 para enriquecer.')
-    else:
-        # Detecta reaberturas (SEM filtro de período)
-        df_reab = detectar_reaberturas(df_movs)
+    st.markdown('### 🐛 DEBUG PASSO A PASSO')
 
-        # ---------- NORMALIZA TIPOS (correção do bug) ----------
-        if not df_reab.empty:
-            df_reab['ticket_id'] = df_reab['ticket_id'].astype(str)
-            ids_filtrados = set(df['id'].astype(str).tolist())
-            df_reab_filtrado = df_reab[df_reab['ticket_id'].isin(ids_filtrados)].copy()
-        else:
-            df_reab_filtrado = df_reab
+    # --- PASSO 1: O que veio do banco? ---
+    st.write(f"**1. Movimentações carregadas:** `{len(df_movs)}`")
+    if not df_movs.empty:
+        st.write(f"   - Colunas: `{df_movs.columns.tolist()}`")
+        st.write(f"   - Tipo de `de_status`: `{df_movs['de_status'].dtype}`")
+        st.write(f"   - Tipo de `para_status`: `{df_movs['para_status'].dtype}`")
+        st.write(f"   - Tipo de `data_movimentacao`: `{df_movs['data_movimentacao'].dtype}`")
+        st.write(f"   - Amostra:")
+        st.dataframe(df_movs[['ticket_id', 'data_movimentacao', 'de_status', 'para_status']].head(10))
 
-        # KPIs
-        total_tickets = len(df)
-        reabertos = len(df_reab_filtrado)
-        total_reaberturas = df_reab_filtrado['reaberto_vezes'].sum() if not df_reab_filtrado.empty else 0
-        taxa_reab = (reabertos / total_tickets * 100) if total_tickets else 0
+    # --- PASSO 2: Quantas reaberturas o filtro SQL direto pega? ---
+    if not df_movs.empty:
+        df_reab_raw = df_movs[
+            df_movs['de_status'].isin(['Resolvido', 'Fechado']) &
+            df_movs['para_status'].isin(['Em atendimento', 'Aguardando confirmação do usuário'])
+        ]
+        st.write(f"**2. Reaberturas via filtro direto (sem função):** `{len(df_reab_raw)}`")
 
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            kpi('Tickets Reabertos', f'{reabertos}',
-                ajuda=f'De {total_tickets} tickets filtrados')
-        with col2:
-            kpi('Taxa de Reabertura', f'{taxa_reab:.1f}%',
-                pill='Alto' if taxa_reab > 10 else 'OK',
-                pill_tipo='negative' if taxa_reab > 10 else 'positive')
-        with col3:
-            kpi('Total de Reaberturas', f'{int(total_reaberturas)}',
-                ajuda='Soma de todas as reaberturas (um ticket pode reabrir várias vezes)')
-        with col4:
-            media_reab = df_reab_filtrado['reaberto_vezes'].mean() if not df_reab_filtrado.empty else 0
-            kpi('Média por Ticket', f'{media_reab:.1f}x')
+        # --- PASSO 3: Quantas a função detectar_reaberturas retorna? ---
+        df_reab_func = detectar_reaberturas(df_movs)
+        st.write(f"**3. Reaberturas via `detectar_reaberturas(df_movs)`:** `{len(df_reab_func)}`")
+        if not df_reab_func.empty:
+            st.dataframe(df_reab_func.head(10))
 
-        st.markdown('')
+        # --- PASSO 4: Quantos IDs do df filtrado batem? ---
+        ids_filtrados = set(df['id'].astype(str).tolist())
+        st.write(f"**4. Total de IDs no df filtrado:** `{len(ids_filtrados)}`")
+        if not df_reab_func.empty:
+            df_reab_func['ticket_id'] = df_reab_func['ticket_id'].astype(str)
+            matches = df_reab_func['ticket_id'].isin(ids_filtrados).sum()
+            st.write(f"**5. Tickets reabertos que estão no df filtrado:** `{matches}`")
 
-        if df_reab_filtrado.empty:
-            callout('success', 'OK',
-                    'Nenhum ticket foi reaberto após ser marcado como Resolvido ou Fechado.')
-        else:
-            # Enriquecer com dados do ticket
-            # Garante que o merge funcione (ambos como str)
-            df_temp = df.copy()
-            df_temp['id_str'] = df_temp['id'].astype(str)
-            df_reab_full = df_reab_filtrado.merge(
-                df_temp[['id_str', 'titulo', 'status', 'categoria', 'prioridade',
-                         'responsavel_atual', 'responsavel_empresa']],
-                left_on='ticket_id', right_on='id_str', how='left'
-            )
-            df_reab_full['id'] = df_reab_full['ticket_id']
-
-            # ---------- Distribuição: quantas vezes cada ticket foi reaberto ----------
-            col_a, col_b = st.columns(2)
-
-            with col_a:
-                painel_title('Quantas vezes <b>cada ticket reabriu</b>')
-                dist_reab = df_reab_full['reaberto_vezes'].value_counts()\
-                    .sort_index().reset_index()
-                dist_reab.columns = ['vezes', 'qtd']
-
-                hbar_list([
-                    {'label': f'{int(r["vezes"])}x',
-                     'value': int(r['qtd']),
-                     'formatted': str(int(r['qtd'])),
-                     'accent': r['vezes'] >= 3}
-                    for _, r in dist_reab.iterrows()
-                ])
-
-            with col_b:
-                painel_title('Top <b>responsáveis</b> com reaberturas')
-                top_resp = df_reab_full.groupby('responsavel_atual').agg(
-                    reabertos=('ticket_id', 'nunique'),
-                    total_reaberturas=('reaberto_vezes', 'sum'),
-                ).reset_index()
-                top_resp = top_resp.sort_values('reabertos', ascending=False).head(10)
-
-                hbar_list([
-                    {'label': str(r['responsavel_atual'])[:22],
-                     'value': int(r['reabertos']),
-                     'formatted': f'{int(r["reabertos"])} ({int(r["total_reaberturas"])}x)',
-                     'accent': r['reabertos'] >= 3}
-                    for _, r in top_resp.iterrows()
-                ])
-
-            st.markdown('')
-
-            # ---------- Reabertura por categoria ----------
-            painel_title('Reabertura por <b>categoria</b>')
-
-            cat_reab = df_reab_full.groupby('categoria').agg(
-                reabertos=('ticket_id', 'nunique'),
-                total_reab=('reaberto_vezes', 'sum'),
-            ).reset_index()
-            cat_reab = cat_reab[cat_reab['reabertos'] >= 1]
-            cat_reab = cat_reab.sort_values('reabertos', ascending=False).head(10)
-
-            if not cat_reab.empty:
-                hbar_list([
-                    {'label': str(r['categoria'])[:30],
-                     'value': int(r['reabertos']),
-                     'formatted': f'{int(r["reabertos"])} ({int(r["total_reab"])}x)',
-                     'accent': r['reabertos'] >= 3}
-                    for _, r in cat_reab.iterrows()
-                ])
-
-            st.markdown('')
-
-            # ---------- Tabela detalhada ----------
-            painel_title('Tickets <b>reabertos</b> — detalhamento')
-
-            tabela = df_reab_full.nlargest(30, 'reaberto_vezes')[
-                ['ticket_id', 'titulo', 'categoria', 'status',
-                 'responsavel_atual', 'reaberto_vezes',
-                 'data_primeira_reabertura', 'data_ultima_reabertura']
-            ].copy()
-
-            tabela.columns = [
-                'ID', 'Título', 'Categoria', 'Status',
-                'Responsável', 'Reaberto (vezes)',
-                'Primeira Reabertura', 'Última Reabertura'
-            ]
-
-            tabela['Primeira Reabertura'] = pd.to_datetime(
-                tabela['Primeira Reabertura'], errors='coerce'
-            ).dt.strftime('%d/%m/%Y %H:%M').fillna('—')
-
-            tabela['Última Reabertura'] = pd.to_datetime(
-                tabela['Última Reabertura'], errors='coerce'
-            ).dt.strftime('%d/%m/%Y %H:%M').fillna('—')
-
-            st.dataframe(tabela, use_container_width=True, hide_index=True)
-
-            # Insights
-            st.markdown('')
-            pior_ticket = df_reab_full.nlargest(1, 'reaberto_vezes').iloc[0]
-            if pior_ticket['reaberto_vezes'] >= 3:
-                callout('warning', 'Atenção',
-                        f'Ticket <b>#{pior_ticket["ticket_id"]}</b> '
-                        f'(<b>{pior_ticket["titulo"][:50]}</b>) foi reaberto '
-                        f'<b>{int(pior_ticket["reaberto_vezes"])} vezes</b>. '
-                        f'Verifique o histórico.')
-
-            if taxa_reab > 15:
-                callout('warning', 'Atenção',
-                        f'Taxa de reabertura em <b>{taxa_reab:.1f}%</b> — '
-                        f'acima do ideal (10%). Pode indicar problema na qualidade da resolução.')
-
-            st.markdown('')
-            legenda_grafico([
-                {'cor': COR_SUCCESS, 'label': 'Sem reabertura', 'tipo': 'circulo'},
-                {'cor': COR_WARNING, 'label': '1-2 reaberturas', 'tipo': 'circulo'},
-                {'cor': COR_DANGER, 'label': '3+ reaberturas', 'tipo': 'circulo'},
-            ])
+            # Mostra exemplos dos que NÃO batem
+            nao_batem = df_reab_func[~df_reab_func['ticket_id'].isin(ids_filtrados)]
+            if not nao_batem.empty:
+                st.write(f"   ⚠️ Exemplos de reabertos que NÃO estão no filtro:")
+                st.write(f"   - IDs reabertos: `{nao_batem['ticket_id'].head(5).tolist()}`")
+                st.write(f"   - Amostra de IDs filtrados: `{list(ids_filtrados)[:5]}`")
 
     # ============================================================
     # EXPORTAR
