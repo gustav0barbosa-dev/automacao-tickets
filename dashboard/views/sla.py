@@ -168,10 +168,14 @@ def render(df):
     separador()
 
     # ==================== SLA POR CRITICIDADE ====================
+    # ==================== SLA POR CRITICIDADE ====================
+    # ==================== SLA POR CRITICIDADE ====================
     painel_title('SLA por <b>Criticidade</b>')
     st.markdown('<div class="page-caption" style="margin-top:-14px;">'
-                'Prazo ideal por criticidade: Urgente=3d, Alta=5d, '
-                'Média=10d, Baixa=15d (dias úteis)'
+                'Prazo ideal por criticidade (horas úteis, expediente 08h-17h seg-sex): '
+                '<b>Urgente</b>=3h · <b>Alta</b>=24h · '
+                '<b>Média</b>=48h · <b>Média-2</b>=72h · '
+                '<b>Baixa</b>=120h · <b>Baixa-2</b>=168h'
                 '</div>',
                 unsafe_allow_html=True)
 
@@ -202,8 +206,8 @@ def render(df):
                     pill_tipo='positive' if perc >= 80 else 'negative')
 
             with col3:
-                media_dias = df_crit['dias_uteis_resolucao'].mean()
-                kpi('Média Dias Úteis', f'{media_dias:.1f}d')
+                media_horas = df_crit['horas_resolucao'].mean()
+                kpi('Média Horas Úteis', f'{media_horas:.1f}h')
 
             st.markdown('')
 
@@ -237,10 +241,10 @@ def render(df):
                 ])
 
             with col_b:
-                painel_title('Média de <b>Dias Úteis</b> até Resolução')
+                painel_title('Média de <b>Horas Úteis</b> até Resolução')
 
                 media_dias_prio = df_crit.groupby('prioridade')[
-                    'dias_uteis_resolucao'
+                    'horas_resolucao'
                 ].mean().reset_index()
 
                 media_dias_prio['ordem'] = media_dias_prio['prioridade'].map(
@@ -250,19 +254,19 @@ def render(df):
 
                 # Mapeia prazo ideal
                 prazo_ideal = {
-                    'Urgente': 3, 'Alta': 5,
-                    'Média': 10, 'Média 1': 10, 'Média 2': 10,
-                    'Média-1': 10, 'Média-2': 10,
-                    'Baixa': 15, 'Baixa 1': 15, 'Baixa 2': 15,
-                    'Baixa-1': 15, 'Baixa-2': 15, 'Baixa-3': 15,
+                    'Urgente': 3, 'Alta': 24,
+                    'Média': 48, 'Média 1': 48, 'Média 2': 72,
+                    'Média-1': 48, 'Média-2': 72,
+                    'Baixa': 120, 'Baixa 1': 120, 'Baixa 2': 168,
+                    'Baixa-1': 120, 'Baixa-2': 168, 'Baixa-3': 168,
                 }
 
                 if not media_dias_prio.empty:
                     hbar_list([
-                        {'label': f'{r["prioridade"]} (ideal: {prazo_ideal.get(r["prioridade"], "?")}d)',
-                         'value': float(r['dias_uteis_resolucao']),
-                         'formatted': f'{r["dias_uteis_resolucao"]:.1f}d',
-                         'accent': r['dias_uteis_resolucao'] > prazo_ideal.get(r['prioridade'], 99)}
+                        {'label': f'{r["prioridade"]} (ideal: {prazo_ideal.get(r["prioridade"], "?")}h)',
+                         'value': float(r['horas_resolucao']),
+                         'formatted': f'{r["horas_resolucao"]:.1f}h',
+                         'accent': r['horas_resolucao'] > prazo_ideal.get(r['prioridade'], 999)}
                         for _, r in media_dias_prio.iterrows()
                     ])
 
