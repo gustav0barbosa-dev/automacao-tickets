@@ -10,3 +10,16 @@ dados/logs/*.log
 # Migrations e scripts SÃO commitados
 !dados/migrations/
 !scripts/
+
+# Secrets e credenciais
+.streamlit/secrets.toml
+.env
+*.env
+
+# Dados sensíveis
+dados/export_csv/
+dados/*.csv
+
+# Cópias acidentais
+* copy.py
+* copy.ipynb
