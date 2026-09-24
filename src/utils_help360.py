@@ -12,6 +12,7 @@ import os
 import re
 import time
 from getpass import getpass
+from utils_anonimizacao import anonimizar_texto
 
 
 # ==================== INSTALAÇÃO DE PACOTES ====================
@@ -222,19 +223,8 @@ def realizar_login(navegador, usuario=None, senha=None):
 
 # ==================== PROTEÇÃO DE DADOS (LGPD) ====================
 def anonimizar_dados_lgpd(texto):
-    """Aplica regex para anonimizar CPF, email e telefone."""
-    if not texto or not isinstance(texto, str):
-        return texto
-
-    padrao_cpf = r'\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b'
-    padrao_email = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'
-    padrao_telefone = r'\b(?:\(?\d{2}\)?\s?)??(?:9?\d{4})-?\d{4}\b'
-
-    texto = re.sub(padrao_cpf, '<CPF>', texto)
-    texto = re.sub(padrao_email, '<EMAIL>', texto)
-    texto = re.sub(padrao_telefone, '<TELEFONE>', texto)
-
-    return texto
+    """Wrapper para compatibilidade. Use utils_anonimizacao.anonimizar_texto."""
+    return anonimizar_texto(texto)
 
 
 # ==================== UTILITÁRIOS ADICIONAIS ====================

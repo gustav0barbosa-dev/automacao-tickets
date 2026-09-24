@@ -20,8 +20,10 @@ import sqlite3
 import shutil
 from datetime import datetime
 from pathlib import Path
+from utils_anonimizacao import anonimizar_texto
 
 import pandas as pd
+
 
 
 # ==================== CAMINHOS ====================
@@ -206,6 +208,16 @@ def persistir_tickets(conn, df: pd.DataFrame) -> dict:
         snapshot_data       = excluded.snapshot_data,
         atualizado_em       = CURRENT_TIMESTAMP
     """
+
+# ==================== ANONIMIZAÇÃO LGPD ====================
+    CAMPOS_ANONIMIZAR = ['titulo', 'descricao', 'solicitante',
+                        'responsavel_atual', 'solucao', 'diagnostico']
+
+    for campo in CAMPOS_ANONIMIZAR:
+        if campo in df.columns:
+            df[campo] = df[campo].apply(
+                lambda x: anonimizar_texto(x) if pd.notna(x) else x
+            )
 
     for _, row in df.iterrows():
         valores = (

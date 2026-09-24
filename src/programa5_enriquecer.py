@@ -230,6 +230,17 @@ def persistir_movimentacoes(conn, ticket_id, df_hist):
     inseridos = 0
     status_anterior = None
 
+    from utils_anonimizacao import anonimizar_texto
+
+    # ... (código anterior)
+
+    # Anonimiza antes de inserir
+    for campo in ['autor', 'comentario']:
+        if campo in df.columns:
+            df[campo] = df[campo].apply(
+                lambda x: anonimizar_texto(x) if pd.notna(x) else x
+            )
+
     for _, row in df.iterrows():
         try:
             data_mov = parsear_data_br(row.get('Alterado Data'))
@@ -330,6 +341,11 @@ def persistir_mensagens(conn, ticket_id, mensagens):
     conn.execute('DELETE FROM mensagens WHERE ticket_id = ?', (ticket_id,))
 
     inseridos = 0
+
+    for m in mensagens:
+        m['autor'] = anonimizar_texto(m.get('autor'))
+        m['conteudo'] = anonimizar_texto(m.get('conteudo'))
+
     for m in mensagens:
         try:
             data_str = (m['data_hora'].strftime('%Y-%m-%d %H:%M:%S')
@@ -356,6 +372,11 @@ def atualizar_ticket(conn, ticket_id, detalhes):
     """Atualiza os campos do ticket, incluindo os novos (classificacao, area, etc)."""
     prev = parsear_data_br(detalhes.get('previsao'))
     prev_str = prev.strftime('%Y-%m-%d %H:%M:%S') if prev is not None else None
+
+    # Anonimiza os campos antes do UPDATE
+    for campo in ['titulo', 'descricao', 'solucao', 'diagnostico']:
+        if campo in detalhes and detalhes[campo]:
+            detalhes[campo] = anonimizar_texto(detalhes[campo])
 
     conn.execute('''
         UPDATE tickets SET

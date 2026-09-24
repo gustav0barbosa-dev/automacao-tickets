@@ -6,6 +6,7 @@ import os
 import sqlite3
 import sys
 from pathlib import Path
+from utils_anonimizacao import anonimizar_texto, CAMPOS_POR_TABELA
 
 import pandas as pd
 from sqlalchemy import create_engine, text
@@ -78,6 +79,14 @@ def migrar_tabela(sqlite_conn, pg_engine, tabela):
 
     # Insere em chunks (to_sql cria a tabela se nao existir)
     try:
+        # Anonimiza antes de enviar pro Postgres
+        if tabela in CAMPOS_POR_TABELA:
+            for campo in CAMPOS_POR_TABELA[tabela]:
+                if campo in df.columns:
+                    print(f'   - Anonimizando {tabela}.{campo}...')
+                    df[campo] = df[campo].apply(
+                        lambda x: anonimizar_texto(x) if pd.notna(x) else x
+                    )
         df.to_sql(tabela, pg_engine, if_exists='append', index=False, chunksize=500)
         print(f'   - OK: {len(df)} registros inseridos no Postgres')
         return len(df)
