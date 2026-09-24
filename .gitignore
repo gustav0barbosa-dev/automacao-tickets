@@ -1,29 +1,42 @@
-# Dados sensíveis (nunca commitar)
-dados/*.db
-dados/*.xlsx
-dados/*.xls
-dados/backup/
-dados/historicos/
-dados/exploracao/
-dados/logs/*.log
-
-# Migrations e scripts SÃO commitados
+# ============ DADOS SENSÍVEIS (LGPD) ============
+dados/
+!dados/.gitkeep
+!dados/schema.sql
 !dados/migrations/
-!scripts/
 
-# Secrets e credenciais
+# ============ BANCO E DERIVADOS ============
+*.db
+*.db-wal
+*.db-shm
+*.gz
+*.csv
+*.xlsx
+*.xls
+
+# ============ PYTHON ============
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# ============ SEGREDOS ============
 .streamlit/secrets.toml
 .env
 *.env
+config/settings.yaml
+!config/settings.example.yaml
 
-# Dados sensíveis
-dados/export_csv/
-dados/*.csv
+# ============ LOGS ============
+logs/
+*.log
 
-# Cópias acidentais
+# ============ BACKUPS ============
+*backup*
 * copy.py
 * copy.ipynb
 
-# Libera o banco comprimido para deploy no Railway
-!dados/tickets.db.gz
+# ============ TESTES TEMPORÁRIOS ============
 test_conexao.py
