@@ -1,6 +1,6 @@
 """
 Anonimiza dados pessoais JÁ EXISTENTES no Postgres.
-Roda DENTRO do Railway (onde a DATABASE_URL aponta para a rede interna).
+Versão OTIMIZADA: processa em lote (não 1 por 1).
 """
 import os
 import sys
@@ -9,7 +9,6 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy import create_engine, text
 
-# Adiciona src/ ao path
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / 'src'))
 
@@ -19,17 +18,15 @@ from utils_anonimizacao import (
     contem_dados_pessoais,
 )
 
+# Tamanho do batch (quantos registros por vez)
+BATCH_SIZE = 500
+PRINT_INTERVAL = 1000
+
 
 def obter_url():
-    """Lê a URL do Postgres da env var (Railway) ou do secrets (local)."""
-    # 1. Env var (Railway)
     url = os.environ.get('DATABASE_URL')
     if url:
-        # Limpa parâmetros problemáticos
-        url = url.replace('&channel_binding=require', '')
-        return url
-
-    # 2. Secrets (local)
+        return url.replace('&channel_binding=require', '')
     secrets = RAIZ / '.streamlit' / 'secrets.toml'
     if secrets.exists():
         with open(secrets, 'r', encoding='utf-8') as f:
@@ -39,23 +36,92 @@ def obter_url():
                     valor = linha.split('=', 1)[1].strip().strip('"').strip("'")
                     if valor.startswith('postgresql://'):
                         return valor
-
     return None
+
+
+def anonimizar_campo(engine, tabela, campo):
+    """Anonimiza um campo em lote."""
+    print(f'   - {campo}: lendo...', end='', flush=True)
+
+    # Lê TUDO de uma vez
+    try:
+        df = pd.read_sql(
+            f'SELECT id, {campo} FROM {tabela} WHERE {campo} IS NOT NULL',
+            engine,
+        )
+    except Exception as e:
+        print(f' ERRO: {e}')
+        return 0
+
+    if df.empty:
+        print(' 0 registros')
+        return 0
+
+    print(f' {len(df)} lidos, filtrando...', end='', flush=True)
+
+    # Filtra localmente (rápido — feito em Python)
+    mask = df[campo].apply(contem_dados_pessoais)
+    df_filtrado = df[mask].copy()
+
+    if df_filtrado.empty:
+        print(f' 0 com dados pessoais')
+        return 0
+
+    print(f' {len(df_filtrado)} com dados pessoais, anonimizando...', end='', flush=True)
+
+    # Anonimiza localmente
+    df_filtrado['novo_valor'] = df_filtrado[campo].apply(anonimizar_texto)
+
+    # Remove os que não mudaram
+    df_filtrado = df_filtrado[df_filtrado[campo] != df_filtrado['novo_valor']]
+
+    if df_filtrado.empty:
+        print(f' 0 alterações reais')
+        return 0
+
+    total = len(df_filtrado)
+    print(f' {total} para atualizar, enviando em lotes...')
+
+    # UPDATE em batch
+    atualizados = 0
+    for i in range(0, total, BATCH_SIZE):
+        batch = df_filtrado.iloc[i:i + BATCH_SIZE]
+        params = [
+            {'val': row['novo_valor'], 'id': row['id']}
+            for _, row in batch.iterrows()
+        ]
+
+        with engine.begin() as conn:
+            conn.execute(
+                text(f'UPDATE {tabela} SET {campo} = :val WHERE id = :id'),
+                params,
+            )
+        atualizados += len(params)
+
+        if atualizados % PRINT_INTERVAL < BATCH_SIZE:
+            print(f'      ... {atualizados}/{total}')
+
+    print(f'      ✅ {atualizados} atualizados')
+    return atualizados
 
 
 def anonimizar_postgres():
     url = obter_url()
     if not url:
         print('❌ URL do Postgres não encontrada.')
-        print('   No Railway, verifique se DATABASE_URL está definida.')
         return False
 
     print(f'✅ URL: {url[:60]}...')
     print()
 
-    engine = create_engine(url, pool_pre_ping=True, connect_args={'connect_timeout': 30})
+    engine = create_engine(
+        url,
+        pool_pre_ping=True,
+        connect_args={'connect_timeout': 30},
+        pool_size=1,
+        max_overflow=0,
+    )
 
-    # Testa conexão
     try:
         with engine.connect() as conn:
             conn.execute(text('SELECT 1'))
@@ -70,38 +136,10 @@ def anonimizar_postgres():
         print(f'\n📦 Tabela: {tabela}')
         for campo in campos:
             try:
-                df = pd.read_sql(
-                    f'SELECT id, {campo} FROM {tabela} WHERE {campo} IS NOT NULL',
-                    engine,
-                )
-            except Exception as e:
-                print(f'   - {campo}: erro ao ler ({e})')
-                continue
-
-            if df.empty:
-                print(f'   - {campo}: 0 registros')
-                continue
-
-            afetados = 0
-            for _, row in df.iterrows():
-                original = row[campo]
-                if not contem_dados_pessoais(original):
-                    continue
-
-                anonimizado = anonimizar_texto(original)
-                if anonimizado != original:
-                    with engine.begin() as conn:
-                        conn.execute(
-                            text(f'UPDATE {tabela} SET {campo} = :val WHERE id = :id'),
-                            {'val': anonimizado, 'id': row['id']},
-                        )
-                    afetados += 1
-
-            if afetados > 0:
-                print(f'   - {campo}: {afetados} registros anonimizados')
+                afetados = anonimizar_campo(engine, tabela, campo)
                 total_afetados += afetados
-            else:
-                print(f'   - {campo}: 0 registros com dados pessoais')
+            except Exception as e:
+                print(f'   - {campo}: ERRO — {e}')
 
     engine.dispose()
     print()
