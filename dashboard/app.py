@@ -88,8 +88,18 @@ def main():
         unsafe_allow_html=True,
     )
 
-    if st.sidebar.button('🚪 Sair', use_container_width=True, key='btn_logout'):
-        logout()
+    # ==================== USUÁRIO LOGADO + LOGOUT ====================
+    col1, col2 = st.sidebar.columns([4, 1])
+    with col1:
+        st.sidebar.markdown(
+            f'<div style="padding-top:6px;font-size:13px;color:#c9a666;">'
+            f'  👤 <b>{usuario_atual()}</b>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    with col2:
+        if st.sidebar.button('🚪', key='btn_logout', help='Sair'):
+            logout()
 
     st.sidebar.markdown(
         '<hr style="border:none;border-top:1px solid rgba(255,255,255,.07);'
