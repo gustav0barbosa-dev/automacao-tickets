@@ -42,6 +42,50 @@ if 'sidebar' not in st.session_state:
 
 aplicar_tema()
 
+# ==================== CSS: LOGOUT NO RODAPÉ ====================
+st.markdown(
+    """
+    <style>
+    /* Faz a sidebar ser um flex container vertical */
+    section[data-testid="stSidebar"] > div:first-child {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+    }
+
+    /* Empurra o bloco do usuário/logout para o rodapé */
+    section[data-testid="stSidebar"] .st-key-user_footer {
+        margin-top: auto;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, .07);
+    }
+
+    /* Botão de logout mais bonito */
+    section[data-testid="stSidebar"] .st-key-btn_logout button {
+        background: linear-gradient(135deg, #c9a666 0%, #8a7340 100%);
+        color: #1a1a1a !important;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 12px;
+        transition: all 0.2s ease;
+        width: 100%;
+    }
+
+    section[data-testid="stSidebar"] .st-key-btn_logout button:hover {
+        background: linear-gradient(135deg, #d9b676 0%, #9a8350 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(201, 166, 102, 0.3);
+    }
+
+    section[data-testid="stSidebar"] .st-key-btn_logout button:active {
+        transform: translateY(0);
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 # ==================== ROTEAMENTO DE PÁGINAS ====================
 def slugify(nome):
@@ -88,24 +132,10 @@ def main():
         unsafe_allow_html=True,
     )
 
-    # ==================== USUÁRIO LOGADO + LOGOUT ====================
-    col1, col2 = st.sidebar.columns([4, 1])
-    with col1:
-        st.sidebar.markdown(
-            f'<div style="padding-top:6px;font-size:13px;color:#c9a666;">'
-            f'  👤 <b>{usuario_atual()}</b>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-    with col2:
-        if st.sidebar.button('🚪', key='btn_logout', help='Sair'):
-            logout()
+# ==================== USUÁRIO LOGADO + LOGOUT (RODAPÉ) ====================
 
-    st.sidebar.markdown(
-        '<hr style="border:none;border-top:1px solid rgba(255,255,255,.07);'
-        '           margin:12px 0 18px 0;">',
-        unsafe_allow_html=True,
-    )
+    if st.button('🚪  Sair', use_container_width=True, key='btn_logout'):
+        logout()
 
     # ==================== CARREGA DADOS ====================
     df = carregar_tickets()
@@ -138,6 +168,22 @@ def main():
     except ImportError as e:
         st.error(f'❌ Página "{pagina}" não implementada: {e}')
         st.info('Crie o arquivo em `dashboard/pages/`.')
+
+# ==================== USUÁRIO LOGADO + LOGOUT (RODAPÉ) ====================
+    with st.sidebar.container(key='user_footer'):
+        st.markdown(
+            f'<div style="padding:0 6px 8px 6px;">'
+            f'  <div style="font-size:10.5px;color:#5c6270;'
+            f'              text-transform:uppercase;letter-spacing:.5px;'
+            f'              margin-bottom:4px;">'
+            f'    Conectado como'
+            f'  </div>'
+            f'  <div style="font-size:13px;color:#c9a666;font-weight:600;">'
+            f'    👤 {usuario_atual()}'
+            f'  </div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
 
 if __name__ == '__main__':
