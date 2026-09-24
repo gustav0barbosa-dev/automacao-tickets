@@ -16,6 +16,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import streamlit as st
 
+from auth import tela_login, logout, usuario_atual
+
+# ⬇️ BLOQUEIA O DASHBOARD ATÉ AUTENTICAR
+if not tela_login():
+    st.stop()
+
 from config import MENU_PAGINAS
 from theme import aplicar_tema
 from data import carregar_tickets
@@ -79,6 +85,15 @@ def main():
         '</div>'
         '<hr style="border:none;border-top:1px solid rgba(255,255,255,.07);'
         '           margin:0 0 18px 0;">',
+        unsafe_allow_html=True,
+    )
+
+    if st.sidebar.button('🚪 Sair', use_container_width=True, key='btn_logout'):
+        logout()
+
+    st.sidebar.markdown(
+        '<hr style="border:none;border-top:1px solid rgba(255,255,255,.07);'
+        '           margin:12px 0 18px 0;">',
         unsafe_allow_html=True,
     )
 
