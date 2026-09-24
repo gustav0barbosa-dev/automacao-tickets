@@ -42,44 +42,48 @@ if 'sidebar' not in st.session_state:
 
 aplicar_tema()
 
-# ==================== CSS: LOGOUT NO RODAPÉ ====================
+
+# ==================== CSS CUSTOMIZADO ====================
 st.markdown(
     """
     <style>
-    /* Faz a sidebar ser um flex container vertical */
-    section[data-testid="stSidebar"] > div:first-child {
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-    }
-
-    /* Empurra o bloco do usuário/logout para o rodapé */
-    section[data-testid="stSidebar"] .st-key-user_footer {
-        margin-top: auto;
-        padding-top: 16px;
-        border-top: 1px solid rgba(255, 255, 255, .07);
-    }
-
-    /* Botão de logout mais bonito */
+    /* Botão de logout dourado */
     section[data-testid="stSidebar"] .st-key-btn_logout button {
-        background: linear-gradient(135deg, #c9a666 0%, #8a7340 100%);
+        background: linear-gradient(135deg, #c9a666 0%, #8a7340 100%) !important;
         color: #1a1a1a !important;
-        font-weight: 600;
-        border: none;
-        border-radius: 8px;
-        padding: 8px 12px;
-        transition: all 0.2s ease;
-        width: 100%;
+        font-weight: 600 !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 8px 12px !important;
+        transition: all 0.2s ease !important;
     }
 
     section[data-testid="stSidebar"] .st-key-btn_logout button:hover {
-        background: linear-gradient(135deg, #d9b676 0%, #9a8350 100%);
+        background: linear-gradient(135deg, #d9b676 0%, #9a8350 100%) !important;
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(201, 166, 102, 0.3);
     }
 
-    section[data-testid="stSidebar"] .st-key-btn_logout button:active {
-        transform: translateY(0);
+    /* Bloco do usuário no rodapé */
+    .user-footer {
+        padding: 12px 6px 8px 6px;
+        border-top: 1px solid rgba(255, 255, 255, .07);
+        margin-top: 24px;
+    }
+
+    .user-label {
+        font-size: 10.5px;
+        color: #5c6270;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        margin-bottom: 4px;
+    }
+
+    .user-name {
+        font-size: 13px;
+        color: #c9a666;
+        font-weight: 600;
+        margin-bottom: 8px;
     }
     </style>
     """,
@@ -132,11 +136,6 @@ def main():
         unsafe_allow_html=True,
     )
 
-# ==================== USUÁRIO LOGADO + LOGOUT (RODAPÉ) ====================
-
-    if st.button('🚪  Sair', use_container_width=True, key='btn_logout'):
-        logout()
-
     # ==================== CARREGA DADOS ====================
     df = carregar_tickets()
 
@@ -169,21 +168,17 @@ def main():
         st.error(f'❌ Página "{pagina}" não implementada: {e}')
         st.info('Crie o arquivo em `dashboard/pages/`.')
 
-# ==================== USUÁRIO LOGADO + LOGOUT (RODAPÉ) ====================
-    with st.sidebar.container(key='user_footer'):
-        st.markdown(
-            f'<div style="padding:0 6px 8px 6px;">'
-            f'  <div style="font-size:10.5px;color:#5c6270;'
-            f'              text-transform:uppercase;letter-spacing:.5px;'
-            f'              margin-bottom:4px;">'
-            f'    Conectado como'
-            f'  </div>'
-            f'  <div style="font-size:13px;color:#c9a666;font-weight:600;">'
-            f'    👤 {usuario_atual()}'
-            f'  </div>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
+    # ==================== RODAPÉ: USUÁRIO + LOGOUT ====================
+    st.sidebar.markdown(
+        '<div class="user-footer">'
+        '  <div class="user-label">Conectado como</div>'
+        f'  <div class="user-name">👤 {usuario_atual()}</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+
+    if st.sidebar.button('🚪  Sair', use_container_width=True, key='btn_logout'):
+        logout()
 
 
 if __name__ == '__main__':
