@@ -26,3 +26,4 @@ dados/*.csv
 
 # Libera o banco comprimido para deploy no Railway
 !dados/tickets.db.gz
+test_conexao.py
