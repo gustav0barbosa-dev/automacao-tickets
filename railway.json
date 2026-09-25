@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "python scripts/anonimizar_postgres.py && streamlit run dashboard/app.py --server.port $PORT --server.address 0.0.0.0",
+    "startCommand": "streamlit run dashboard/app.py --server.port $PORT --server.address 0.0.0.0",
     "restartPolicyType": "ON_FAILURE"
   }
 }
