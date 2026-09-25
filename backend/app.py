@@ -266,6 +266,94 @@ def status():
         logger.exception('Erro no /status')
         return jsonify({'erro': 'Erro interno'}), 500
 
+# ==================== ENDPOINT /atualizar ====================
+@app.route('/atualizar', methods=['POST'])
+@requer_api_key
+def atualizar():
+    """
+    Recebe o tickets.db.gz, descompacta, roda migração pro Postgres.
+
+    Requer:
+        - Header: X-API-Key
+        - Body: multipart/form-data com 'file'
+    """
+    import gzip
+    import shutil
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    if 'file' not in request.files:
+        return jsonify({'erro': 'Nenhum arquivo enviado'}), 400
+
+    arquivo = request.files['file']
+    if not arquivo.filename:
+        return jsonify({'erro': 'Nome do arquivo vazio'}), 400
+
+    logger.info(f'Recebendo upload: {arquivo.filename}')
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        gz_path = tmpdir / 'tickets.db.gz'
+        db_path = tmpdir / 'tickets.db'
+
+        # 1. Salva o .gz
+        arquivo.save(str(gz_path))
+        logger.info(f'  .gz: {gz_path.stat().st_size / 1e6:.1f} MB')
+
+        # 2. Descompacta
+        try:
+            with gzip.open(gz_path, 'rb') as f_in:
+                with open(db_path, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+            logger.info(f'  .db: {db_path.stat().st_size / 1e6:.1f} MB')
+        except Exception:
+            logger.exception('Erro ao descompactar')
+            return jsonify({'erro': 'Falha ao descompactar'}), 500
+
+        # 3. Copia pro local esperado
+        dados_dir = Path('/app/dados')
+        dados_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(db_path, dados_dir / 'tickets.db')
+
+        # 4. Roda migração
+        script = Path('/app/migrar_sqlite_para_postgres.py')
+        if not script.exists():
+            logger.error(f'Script não encontrado: {script}')
+            return jsonify({'erro': 'Script de migração não encontrado'}), 500
+
+        try:
+            resultado = subprocess.run(
+                ['python', str(script)],
+                cwd='/app',
+                capture_output=True,
+                text=True,
+                timeout=600,  # 10 min
+                env={**os.environ, 'SKIP_CONFIRM': '1'},
+            )
+
+            if resultado.returncode != 0:
+                logger.error(f'Migração falhou: {resultado.stderr}')
+                return jsonify({
+                    'erro': 'Falha na migração',
+                    'returncode': resultado.returncode,
+                    'log': (resultado.stdout or '')[-2000:],
+                    'stderr': (resultado.stderr or '')[-1000:],
+                }), 500
+
+            logger.info('Migração concluída com sucesso')
+            return jsonify({
+                'status': 'ok',
+                'mensagem': 'Banco atualizado com sucesso',
+                'log': (resultado.stdout or '')[-2000:],
+                'timestamp': datetime.now().isoformat(),
+            })
+
+        except subprocess.TimeoutExpired:
+            return jsonify({'erro': 'Timeout (>10 min)'}), 500
+        except Exception:
+            logger.exception('Erro inesperado na migração')
+            return jsonify({'erro': 'Erro interno'}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
