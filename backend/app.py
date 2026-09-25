@@ -16,6 +16,8 @@ import logging
 import os
 from datetime import datetime
 from functools import wraps
+import requests as http_requests
+from flask import Response
 
 import pandas as pd
 import psycopg2
@@ -317,7 +319,7 @@ def atualizar():
         shutil.copy2(db_path, dados_dir / 'tickets.db')
 
         # 4. Roda migração
-        script = Path('/app/migrar_sqlite_para_postgres.py')
+        script = Path(__file__).parent / 'migrar_sqlite_para_postgres.py'
         if not script.exists():
             logger.error(f'Script não encontrado: {script}')
             return jsonify({'erro': 'Script de migração não encontrado'}), 500
@@ -354,6 +356,65 @@ def atualizar():
         except Exception:
             logger.exception('Erro inesperado na migração')
             return jsonify({'erro': 'Erro interno'}), 500
+
+STREAMLIT_URL = 'http://localhost:8501'
+
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
+def proxy_streamlit(path):
+    """
+    Encaminha requisições não-API para o Streamlit.
+    Exclui rotas já definidas (upload, status, atualizar).
+    """
+    # Ignora rotas do próprio Flask
+    if path in ('upload', 'status', 'atualizar', 'health'):
+        return jsonify({'erro': 'Rota não encontrada'}), 404
+
+    # Monta URL destino
+    url = f'{STREAMLIT_URL}/{path}'
+
+    # Encaminha headers (exceto hop-by-hop)
+    headers = {
+        k: v for k, v in request.headers
+        if k.lower() not in ('host', 'connection', 'content-length')
+    }
+
+    try:
+        if request.method == 'GET':
+            r = http_requests.get(
+                url,
+                params=request.args,
+                headers=headers,
+                timeout=30,
+                stream=True,
+                cookies=request.cookies,
+            )
+        else:
+            r = http_requests.request(
+                method=request.method,
+                url=url,
+                headers=headers,
+                data=request.get_data(),
+                cookies=request.cookies,
+                timeout=30,
+                stream=True,
+            )
+
+        # Copia headers da resposta
+        excluded = ('content-encoding', 'content-length', 'transfer-encoding', 'connection')
+        response_headers = [
+            (k, v) for k, v in r.raw.headers.items()
+            if k.lower() not in excluded
+        ]
+
+        return Response(
+            r.iter_content(chunk_size=8192),
+            status=r.status_code,
+            headers=response_headers,
+        )
+    except Exception:
+        logger.exception('Erro no proxy para Streamlit')
+        return jsonify({'erro': 'Streamlit indisponível'}), 502
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

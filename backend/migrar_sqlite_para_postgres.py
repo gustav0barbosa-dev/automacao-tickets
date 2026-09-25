@@ -11,8 +11,8 @@ from utils_anonimizacao import anonimizar_texto, CAMPOS_POR_TABELA
 import pandas as pd
 from sqlalchemy import create_engine, text
 
-RAIZ = Path(__file__).resolve().parent.parent
-SQLITE_PATH = RAIZ / 'dados' / 'tickets.db'
+RAIZ = Path(__file__).resolve().parent
+SQLITE_PATH = Path('/app/dados/tickets.db')
 
 # Tabelas que NAO devem ser migradas (internas do SQLite)
 TABELAS_IGNORADAS = ['sqlite_sequence']
