@@ -671,6 +671,76 @@ section[data-testid="stSidebar"] button[kind="primary"] p {
     border-radius: 0;
 }
 
+/* ============================================
+   FASE 5 — MICROANIMAÇÕES
+   ============================================ */
+
+/* Cards levantam no hover */
+.kpi-card {
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.kpi-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(201,166,102,.2);
+    box-shadow: 0 6px 20px rgba(0,0,0,.15);
+}
+
+/* Insight cards levantam */
+.insight-card {
+    transition: transform .2s ease, border-color .2s ease;
+}
+.insight-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(201,166,102,.15);
+}
+
+/* Linhas da tabela */
+.tabela-custom tbody tr {
+    transition: background .12s ease;
+}
+.tabela-custom tbody tr:hover {
+    background: rgba(201,166,102,.04) !important;
+}
+
+/* Botões com hover mais suave */
+.stButton > button {
+    transition: all .15s ease;
+}
+.stButton > button:hover {
+    transform: translateY(-1px);
+}
+
+/* Transição suave ao trocar de página */
+.main .block-container {
+    animation: fadeIn .25s ease;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(3px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar customizada */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.08);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(201,166,102,.3);
+}
+
+/* Foco em inputs */
+input:focus, textarea:focus, select:focus {
+    border-color: #c9a666 !important;
+    box-shadow: 0 0 0 2px rgba(201,166,102,.15) !important;
+}
+
 </style>
 """
 
