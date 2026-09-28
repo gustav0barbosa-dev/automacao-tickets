@@ -219,19 +219,27 @@ def anonimizar_dataframe(df, campos: list, anonimizar_nomes: bool = True):
     return df
 
 # ==================== CAMPOS POR TABELA ====================
-
-# Quais campos anonimizar em cada tabela
+# IMPORTANTE: Só anonimizar campos que contenham dados de BENEFICIÁRIOS
+# (titulares externos). NÃO anonimizar campos com nomes de FUNCIONÁRIOS
+# (analistas internos) — base legal: contrato de trabalho.
 CAMPOS_POR_TABELA = {
     'tickets': [
-        'titulo', 'descricao', 'solicitante',
-        'responsavel_atual', 'solucao', 'diagnostico',
-        'categoria', 'subcategoria',  # podem conter nomes
+        # Texto livre (pode conter CPF, nome, e-mail do beneficiário)
+        'titulo',
+        'descricao',
+        'solucao',
+        'diagnostico',
+        # NÃO anonimizar: 'solicitante', 'responsavel_atual', 'categoria', 'subcategoria'
     ],
     'movimentacoes': [
-        'autor', 'comentario',
+        # Texto livre
+        'comentario',
+        # NÃO anonimizar: 'autor'
     ],
     'mensagens': [
-        'autor', 'conteudo', 'analista_destino',
+        # Texto livre
+        'conteudo',
+        # NÃO anonimizar: 'autor', 'analista_destino'
     ],
 }
 
