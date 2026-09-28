@@ -6,13 +6,30 @@ import os
 import sqlite3
 import sys
 from pathlib import Path
+
+# Adiciona src/ ao sys.path
+_RAIZ = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_RAIZ / 'src'))
+
 from utils_anonimizacao import anonimizar_texto, CAMPOS_POR_TABELA
+
 
 import pandas as pd
 from sqlalchemy import create_engine, text
 
 RAIZ = Path(__file__).resolve().parent.parent
 SQLITE_PATH = RAIZ / 'dados' / 'tickets.db'
+sys.path.insert(0, str(RAIZ / 'src'))
+
+# Agora o import funciona
+# Adiciona src/ ao sys.path
+import sys as _sys
+from pathlib import Path as _Path
+_RAIZ = _Path(__file__).resolve().parent.parent
+_sys.path.insert(0, str(_RAIZ / 'src'))
+
+from utils_anonimizacao import anonimizar_texto, CAMPOS_POR_TABELA
+
 
 # Tabelas que NAO devem ser migradas (internas do SQLite)
 TABELAS_IGNORADAS = ['sqlite_sequence']
