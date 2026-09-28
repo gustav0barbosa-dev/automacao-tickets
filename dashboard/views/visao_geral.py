@@ -10,6 +10,8 @@ from components import (
     separador, aplicar_tema_plotly, botao_exportar,
     legenda_grafico, info_grafico, filtrar_outliers,
     alerta_fantasmas, chart_card, global_header,
+    tabela_customizada, BADGES_PRIORIDADE, BADGES_SLA, BADGES_STATUS,
+    card_com_tabela,
 )
 from lucide import lucide
 from config import COR_GOLD, COR_BAR
@@ -160,6 +162,29 @@ def render(df):
             _insight_card('warning', 'Aging', f'{aging:.0f}d', 'Alto')
         else:
             _insight_card('success', 'Aging', f'{aging:.0f}d', 'OK')
+
+    # ==================== FASE 4 — TABELA DE TICKETS ====================
+    tabela_df = df.nlargest(20, 'alterado_data')[
+        ['id', 'titulo', 'prioridade', 'status', 'responsavel_atual']
+    ].copy()
+
+    card_com_tabela(
+        titulo='Tickets Recentes',
+        descricao='Últimos tickets atualizados',
+        icone='inbox',
+        df=tabela_df,
+        colunas=[
+            {'campo': 'id', 'label': 'ID', 'tipo': 'num'},
+            {'campo': 'titulo', 'label': 'Título', 'tipo': 'texto',
+             'truncate': True},
+            {'campo': 'prioridade', 'label': 'Prioridade', 'tipo': 'badge',
+             'badge_map': BADGES_PRIORIDADE},
+            {'campo': 'status', 'label': 'Status', 'tipo': 'badge',
+             'badge_map': BADGES_STATUS},
+            {'campo': 'responsavel_atual', 'label': 'Responsável',
+             'tipo': 'texto'},
+        ],
+    )
 
     # ==================== EXPORTAR ====================
     separador()

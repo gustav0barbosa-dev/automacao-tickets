@@ -130,9 +130,7 @@ def main():
         '  <div style="font-size:11.5px;color:#5c6270;margin-top:4px;">'
         '    Dashboard de Análise'
         '  </div>'
-        '</div>'
-        '<hr style="border:none;border-top:1px solid rgba(255,255,255,.07);'
-        '           margin:0 0 18px 0;">',
+        '</div>',
         unsafe_allow_html=True,
     )
 
@@ -140,24 +138,47 @@ def main():
     df = carregar_tickets()
 
     if df is None or df.empty:
-        st.error('❌ Banco de dados não encontrado ou vazio.')
-        st.info('Execute primeiro:\n\n```\npython src/programa4_persistir.py\n```')
+        from components import empty_state
+        empty_state(
+            titulo='Nenhum dado disponível',
+            descricao='Execute o pipeline para popular o banco.',
+            icone='database',
+        )
         return
 
-    # ==================== NAVEGAÇÃO ====================
-    pagina = st.sidebar.radio(
-        'Navegação',
-        options=MENU_PAGINAS,
-        label_visibility='collapsed',
-    )
+    # ==================== NAVEGAÇÃO AGRUPADA ====================
+    from config import MENU_GRUPOS
+    from components import sidebar_group
 
+    # Inicializa a página atual
+    if 'pagina_atual' not in st.session_state:
+        st.session_state.pagina_atual = MENU_GRUPOS[0]['paginas'][0]
+
+    # Renderiza grupos e páginas
+    for grupo in MENU_GRUPOS:
+        sidebar_group(grupo['titulo'], grupo['icone'])
+        for pagina in grupo['paginas']:
+            ativo = (st.session_state.pagina_atual == pagina)
+
+            # Botão estilizado com CSS
+            if st.sidebar.button(
+                pagina,
+                key=f'nav_{pagina}',
+                use_container_width=True,
+                type='primary' if ativo else 'secondary',
+            ):
+                st.session_state.pagina_atual = pagina
+                st.rerun()
+
+    pagina = st.session_state.pagina_atual
+
+    # ==================== FILTROS ====================
     st.sidebar.markdown(
         '<hr style="border:none;border-top:1px solid rgba(255,255,255,.07);'
         '           margin:18px 0;">',
         unsafe_allow_html=True,
     )
 
-    # ==================== FILTROS ====================
     df_filtrado = aplicar_filtros(df)
 
     # ==================== RENDERIZA PÁGINA ====================
@@ -166,7 +187,6 @@ def main():
         modulo.render(df_filtrado)
     except ImportError as e:
         st.error(f'❌ Página "{pagina}" não implementada: {e}')
-        st.info('Crie o arquivo em `dashboard/pages/`.')
 
     # ==================== RODAPÉ: USUÁRIO + LOGOUT ====================
     st.sidebar.markdown(

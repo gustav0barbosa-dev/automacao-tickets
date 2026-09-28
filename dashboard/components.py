@@ -316,30 +316,48 @@ def alerta_fantasmas(df, coluna='dias_aberto', limite=LIMITE_FANTASMA_DIAS):
         st.dataframe(tabela, use_container_width=True, hide_index=True)
 
 # ==================== FASE 1 — CHART-CARD ====================
-def chart_card(titulo, descricao=None, icone=None, children=None):
+def chart_card(titulo=None, descricao=None, icone=None, compact=False):
     """
-    Wrapper visual para gráficos.
+    Wrapper visual para gráficos/tabelas.
+
+    Args:
+        titulo: título do card (opcional)
+        descricao: subtítulo (opcional)
+        icone: nome do ícone Lucide (opcional)
+        compact: se True, o padding do corpo é 0 (útil para tabelas)
 
     Uso:
         with chart_card('Volume de Tickets', 'Criados por mês', icone='chart-line'):
             st.plotly_chart(fig)
+
+        with chart_card('Tickets Recentes', compact=True):
+            tabela_customizada(...)
     """
     from contextlib import contextmanager
 
     @contextmanager
     def _render():
-        # Header do card
-        icone_html = f'<span class="kpi-icon" style="margin-right:6px;">{lucide(icone, 16)}</span>' if icone else ''
+        css_class = 'chart-card compact' if compact else 'chart-card'
+
+        icone_html = (
+            f'<span style="color:#c9a666;margin-right:6px;">{lucide(icone, 16)}</span>'
+            if icone else ''
+        )
         desc_html = f'<div class="chart-card-desc">{descricao}</div>' if descricao else ''
 
+        header_html = ''
+        if titulo:
+            header_html = (
+                f'<div class="chart-card-header">'
+                f'<div>'
+                f'<div class="chart-card-title">{icone_html}{titulo}</div>'
+                f'{desc_html}'
+                f'</div>'
+                f'</div>'
+            )
+
         st.markdown(
-            f'<div class="chart-card">'
-            f'<div class="chart-card-header">'
-            f'<div>'
-            f'<div class="chart-card-title">{icone_html}{titulo}</div>'
-            f'{desc_html}'
-            f'</div>'
-            f'</div>',
+            f'<div class="{css_class}">{header_html}',
             unsafe_allow_html=True,
         )
         try:
@@ -445,3 +463,286 @@ def sidebar_section(titulo):
         f'<div class="sidebar-section">{titulo}</div>',
         unsafe_allow_html=True,
     )
+
+# ==================== FASE 3 — SIDEBAR GROUP ====================
+def sidebar_group(titulo, icone):
+    """Rótulo de grupo na sidebar."""
+    st.sidebar.markdown(
+        f'<div style="display:flex;align-items:center;gap:8px;'
+        f'padding:18px 14px 6px 14px;">'
+        f'<span style="color:#c9a666;opacity:.8;">{lucide(icone, 12)}</span>'
+        f'<span style="font-size:10px;color:#5c6270;letter-spacing:1.4px;'
+        f'text-transform:uppercase;font-weight:700;">{titulo}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+# ==================== FASE 3 — EMPTY STATE ====================
+def empty_state(titulo='Nenhum dado encontrado',
+                descricao='Tente ajustar os filtros.',
+                icone='search', acao_label=None, acao_key=None):
+    """
+    Estado vazio profissional.
+
+    Uso:
+        if df.empty:
+            empty_state(
+                titulo='Nenhum ticket encontrado',
+                descricao='Tente ajustar os filtros.',
+                acao_label='Limpar filtros',
+                acao_key='limpar_filtros',
+            )
+    """
+    st.markdown(
+        f'<div style="display:flex;flex-direction:column;align-items:center;'
+        f'justify-content:center;padding:60px 20px;text-align:center;">'
+        f'<div style="color:#5c6270;margin-bottom:20px;">'
+        f'{lucide(icone, 48, "#5c6270", 1.5)}</div>'
+        f'<div style="font-family:Fraunces,serif;font-size:20px;'
+        f'font-weight:600;color:#eae7e1;margin-bottom:8px;">{titulo}</div>'
+        f'<div style="font-size:13px;color:#9299a6;max-width:400px;">'
+        f'{descricao}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+    if acao_label:
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            if st.button(acao_label, key=acao_key, use_container_width=True):
+                st.rerun()
+
+
+# ==================== FASE 3 — INSIGHT CARD ====================
+def insight_card(tipo, titulo, valor, detalhe,
+                 acao_label=None, acao_key=None, cor_custom=None):
+    """
+    Card de insight com ação clicável.
+
+    Args:
+        tipo: 'success' | 'warning' | 'danger' | 'info'
+        titulo: ex: 'Backlog'
+        valor: ex: '32 tickets'
+        detalhe: ex: '> 30 dias'
+        acao_label: ex: 'Ver tickets'
+        acao_key: chave única
+    """
+    cores = {
+        'success': ('#7fc99b', 'check-circle'),
+        'warning': ('#d9ac53', 'alert-triangle'),
+        'danger':  ('#e0867a', 'alert-circle'),
+        'info':    ('#8b96a8', 'info'),
+    }
+    cor, icone = cores.get(tipo, ('#8b96a8', 'info'))
+    if cor_custom:
+        cor = cor_custom
+
+    st.markdown(
+        f'<div style="background:#1b2029;border:1px solid rgba(255,255,255,.07);'
+        f'border-radius:12px;padding:18px 20px;height:100%;'
+        f'border-left:3px solid {cor};transition:all .2s ease;">'
+        f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">'
+        f'<span style="color:{cor};">{lucide(icone, 16)}</span>'
+        f'<span style="font-size:11px;color:#5c6270;letter-spacing:.8px;'
+        f'text-transform:uppercase;font-weight:600;">{titulo}</span>'
+        f'</div>'
+        f'<div style="font-family:Fraunces,serif;font-size:22px;'
+        f'font-weight:600;color:#eae7e1;line-height:1.2;margin-bottom:6px;">'
+        f'{valor}</div>'
+        f'<div style="font-size:12px;color:#9299a6;margin-bottom:10px;">'
+        f'{detalhe}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    if acao_label:
+        if st.button(acao_label, key=acao_key, use_container_width=True):
+            return True
+    return False
+
+
+# ==================== FASE 4 — TABELA CUSTOMIZADA ====================
+def tabela_customizada(df, colunas, altura_max=500, dentro_de_card=False):
+    """
+    Tabela customizada com badges e hover.
+
+    Args:
+        df: DataFrame
+        colunas: lista de dicts (ver doc anterior)
+        altura_max: altura máxima em px
+        dentro_de_card: se True, remove o `border` e `border-radius`
+                        (quando a tabela está dentro de um chart_card)
+    """
+    if df.empty:
+        empty_state()
+        return
+
+    # Classe extra se estiver dentro de card
+    classe_extra = '' if not dentro_de_card else ' tabela-no-card'
+
+    html = f'<div style="max-height:{altura_max}px;overflow-y:auto;">'
+    html += f'<table class="tabela-custom{classe_extra}">'
+
+    # Header
+    html += '<thead><tr>'
+    for col in colunas:
+        align_class = ' class="num"' if col.get('tipo') == 'num' else ''
+        html += f'<th{align_class}>{col["label"]}</th>'
+    html += '</tr></thead><tbody>'
+
+    # Linhas
+    for _, row in df.iterrows():
+        html += '<tr>'
+        for col in colunas:
+            campo = col['campo']
+            valor = row.get(campo)
+            tipo = col.get('tipo', 'texto')
+            css_class = 'num' if tipo == 'num' else ''
+
+            # ---------- FORMATAÇÃO ----------
+            if tipo == 'badge' and 'badge_map' in col:
+                badge_tipo = col['badge_map'].get(valor, 'neutral')
+                conteudo = f'<span class="badge badge-{badge_tipo}">{valor}</span>'
+
+            elif tipo == 'data' and pd.notna(valor):
+                try:
+                    fmt = col.get('formato', '%d/%m/%Y')
+                    conteudo = pd.to_datetime(valor).strftime(fmt)
+                except Exception:
+                    conteudo = '—'
+
+            elif tipo == 'num':
+                try:
+                    conteudo = f'{float(valor):,.0f}' if pd.notna(valor) else '—'
+                except Exception:
+                    conteudo = '—'
+
+            else:
+                if pd.notna(valor):
+                    v = str(valor)
+                    if col.get('truncate'):
+                        v = v[:60] + ('…' if len(v) > 60 else '')
+                    conteudo = v
+                else:
+                    conteudo = '—'
+
+            if col.get('truncate'):
+                css_class += ' truncate'
+
+            align_class = f' class="{css_class.strip()}"' if css_class.strip() else ''
+            html += f'<td{align_class}>{conteudo}</td>'
+        html += '</tr>'
+
+    html += '</tbody></table></div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+# ==================== FASE 4 — MAPA DE BADGES ====================
+# Mapas reutilizáveis para badges
+BADGES_PRIORIDADE = {
+    'Crítica': 'prio-critica',
+    'Alta':    'prio-alta',
+    'Média':   'prio-media',
+    'Baixa':   'prio-baixa',
+    'Baixa-1': 'prio-baixa',
+    'Baixa-2': 'prio-baixa',
+    'Baixa-3': 'prio-baixa',
+}
+
+BADGES_SLA = {
+    'cumprido':  'success',
+    'estourado': 'danger',
+}
+
+BADGES_STATUS = {
+    'Fechado':    'neutral',
+    'Resolvido':  'success',
+    'Em atendimento': 'info',
+    'Aguardando confirmação do usuário': 'warning',
+    'Aguardando Deploy': 'warning',
+    'Em Análise': 'info',
+}
+
+def card_com_tabela(titulo, descricao, icone, df, colunas, altura_max=500):
+    """
+    Renderiza um card com tabela dentro (HTML único).
+    
+    Resolve o problema do `with chart_card()` que não mantém o contexto HTML.
+    """
+    if df.empty:
+        empty_state()
+        return
+    
+    icone_html = lucide(icone, 16) if icone else ''
+    
+    # ---------- HEADER DO CARD ----------
+    html = (
+        f'<div style="background:#1b2029;border:1px solid rgba(255,255,255,.07);'
+        f'border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.08);">'
+        # Header
+        f'<div style="padding:18px 24px 14px 24px;'
+        f'border-bottom:1px solid rgba(255,255,255,.07);">'
+        f'<div style="display:flex;align-items:center;gap:8px;'
+        f'font-family:Fraunces,serif;font-size:16px;font-weight:500;color:#eae7e1;">'
+        f'<span style="color:#c9a666;">{icone_html}</span>'
+        f'{titulo}'
+        f'</div>'
+        f'<div style="font-size:12.5px;color:#5c6270;margin-top:4px;">'
+        f'{descricao}</div>'
+        f'</div>'
+        # Tabela
+        f'<div style="max-height:{altura_max}px;overflow-y:auto;">'
+        f'<table style="width:100%;border-collapse:collapse;font-size:12.5px;">'
+    )
+    
+    # ---------- HEADER DA TABELA ----------
+    html += '<thead><tr>'
+    for col in colunas:
+        align = 'right' if col.get('tipo') == 'num' else 'left'
+        html += (
+            f'<th style="padding:11px 14px;text-align:{align};'
+            f'font-size:10.5px;color:#5c6270;letter-spacing:.8px;'
+            f'text-transform:uppercase;font-weight:600;'
+            f'border-bottom:1px solid rgba(255,255,255,.07);'
+            f'position:sticky;top:0;background:#1b2029;z-index:1;">'
+            f'{col["label"]}</th>'
+        )
+    html += '</tr></thead><tbody>'
+    
+    # ---------- LINHAS ----------
+    for _, row in df.iterrows():
+        html += '<tr style="transition:background .12s ease;">'
+        for col in colunas:
+            campo = col['campo']
+            valor = row.get(campo)
+            tipo = col.get('tipo', 'texto')
+            align = 'right' if tipo == 'num' else 'left'
+            
+            # Formatação
+            if tipo == 'badge' and 'badge_map' in col:
+                badge_tipo = col['badge_map'].get(valor, 'neutral')
+                conteudo = f'<span class="badge badge-{badge_tipo}">{valor}</span>'
+            elif tipo == 'num':
+                try:
+                    conteudo = f'{float(valor):,.0f}' if pd.notna(valor) else '—'
+                except Exception:
+                    conteudo = '—'
+            else:
+                if pd.notna(valor):
+                    v = str(valor)
+                    if col.get('truncate'):
+                        v = v[:60] + ('…' if len(v) > 60 else '')
+                    conteudo = v
+                else:
+                    conteudo = '—'
+            
+            html += (
+                f'<td style="padding:10px 14px;text-align:{align};'
+                f'color:#eae7e1;border-bottom:1px solid rgba(255,255,255,.04);'
+                f'{"font-variant-numeric:tabular-nums;" if tipo == "num" else ""}">'
+                f'{conteudo}</td>'
+            )
+        html += '</tr>'
+    
+    html += '</tbody></table></div></div>'
+    st.markdown(html, unsafe_allow_html=True)

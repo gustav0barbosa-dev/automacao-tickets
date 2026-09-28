@@ -26,6 +26,22 @@ CSS = """
     --success:#7fc99b;
     --danger:#e0867a;
     --warning:#d9ac53;
+
+        /* Fase 4 — paleta semântica */
+    --info: #6fa8dc;
+    --success-strong: #4ade80;
+    --danger-strong: #ef4444;
+    --warning-strong: #f59e0b;
+    
+    /* Fase 4 — sombras */
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.08);
+    --shadow-md: 0 4px 12px rgba(0,0,0,.12);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,.16);
+    
+    /* Fase 4 — radius */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
 }
 
 /* ============================================
@@ -134,37 +150,6 @@ footer { visibility: hidden; }
     padding-top:2rem !important;
     padding-bottom:3rem !important;
     max-width:1400px;
-}
-
-/* ============================================
-   NAVEGAÇÃO (radio vertical na sidebar)
-   ============================================ */
-[data-testid="stSidebar"] [role="radiogroup"] > label {
-    padding:10px 14px !important;
-    border-radius:6px;
-    border-left:3px solid transparent;
-    font-size:13.5px;
-    color:var(--text-sec) !important;
-    cursor:pointer;
-    margin-bottom:2px;
-    background:transparent;
-}
-[data-testid="stSidebar"] [role="radiogroup"] > label:hover {
-    background:rgba(255,255,255,.03);
-    color:var(--text) !important;
-}
-[data-testid="stSidebar"] [role="radiogroup"] > label:has(input:checked) {
-    background:rgba(255,255,255,.05);
-    border-left-color:var(--gold);
-    color:var(--text) !important;
-    font-weight:600;
-}
-[data-testid="stSidebar"] [role="radiogroup"] > label > div:first-child {
-    display:none;
-}
-[data-testid="stSidebar"] [role="radiogroup"] > label p {
-    color:inherit !important;
-    font-size:13.5px !important;
 }
 
 /* ============================================
@@ -437,6 +422,253 @@ footer { visibility: hidden; }
     font-weight: 600;
     padding: 18px 14px 8px 14px;
     margin: 0;
+}
+
+/* Botões de navegação da sidebar */
+section[data-testid="stSidebar"] button[kind="secondary"] {
+    background: transparent !important;
+    border: none !important;
+    color: #9299a6 !important;
+    font-size: 13px !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    padding: 8px 14px !important;
+    border-radius: 6px !important;
+}
+
+section[data-testid="stSidebar"] button[kind="secondary"]:hover {
+    background: rgba(255,255,255,.03) !important;
+    color: #eae7e1 !important;
+}
+
+section[data-testid="stSidebar"] button[kind="primary"] {
+    background: rgba(201,166,102,.12) !important;
+    border: none !important;
+    border-left: 3px solid #c9a666 !important;
+    color: #eae7e1 !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    padding: 8px 14px !important;
+    border-radius: 6px !important;
+}
+
+/* Botões de navegação mais discretos */
+section[data-testid="stSidebar"] button[kind="secondary"] p,
+section[data-testid="stSidebar"] button[kind="primary"] p {
+    font-size: 13px !important;
+    text-align: left !important;
+    width: 100% !important;
+}
+
+section[data-testid="stSidebar"] button[kind="secondary"],
+section[data-testid="stSidebar"] button[kind="primary"] {
+    justify-content: flex-start !important;
+    padding: 8px 14px !important;
+}
+
+section[data-testid="stSidebar"] button[kind="secondary"] p {
+    color: #9299a6 !important;
+}
+
+section[data-testid="stSidebar"] button[kind="primary"] p {
+    color: #eae7e1 !important;
+    font-weight: 600 !important;
+}
+
+/* ============================================
+   FASE 3 — BOTÕES DE NAVEGAÇÃO (sidebar)
+   ============================================ */
+section[data-testid="stSidebar"] button[kind="secondary"],
+section[data-testid="stSidebar"] button[kind="primary"] {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    text-align: left !important;
+    padding: 10px 16px !important;
+    margin: 2px 0 !important;
+    border: none !important;
+    border-radius: 6px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    transition: background .15s ease, color .15s ease !important;
+}
+
+/* Força o conteúdo interno a alinhar à esquerda */
+section[data-testid="stSidebar"] button[kind="secondary"] > div,
+section[data-testid="stSidebar"] button[kind="primary"] > div {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    width: 100% !important;
+    text-align: left !important;
+}
+
+/* Texto dos botões */
+section[data-testid="stSidebar"] button[kind="secondary"] p,
+section[data-testid="stSidebar"] button[kind="primary"] p {
+    font-size: 13.5px !important;
+    text-align: left !important;
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+/* Estado normal (inativo) */
+section[data-testid="stSidebar"] button[kind="secondary"] p {
+    color: #9299a6 !important;
+    font-weight: 400 !important;
+}
+
+/* Hover (inativo) */
+section[data-testid="stSidebar"] button[kind="secondary"]:hover {
+    background: rgba(255,255,255,.03) !important;
+}
+section[data-testid="stSidebar"] button[kind="secondary"]:hover p {
+    color: #eae7e1 !important;
+}
+
+/* Ativo (primary) */
+section[data-testid="stSidebar"] button[kind="primary"] {
+    background: rgba(201,166,102,.08) !important;
+    border-left: 3px solid #c9a666 !important;
+    border-radius: 6px 0 0 6px !important;
+}
+section[data-testid="stSidebar"] button[kind="primary"] p {
+    color: #eae7e1 !important;
+    font-weight: 600 !important;
+}
+
+/* ============================================
+   FASE 4 — BADGES SEMÂNTICOS
+   ============================================ */
+.badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    white-space: nowrap;
+}
+.badge-success { background: rgba(127,201,155,.12); color: var(--success); }
+.badge-danger  { background: rgba(224,134,122,.12); color: var(--danger); }
+.badge-warning { background: rgba(217,172,83,.12);  color: var(--warning); }
+.badge-info    { background: rgba(111,168,220,.12); color: var(--info); }
+.badge-neutral { background: rgba(255,255,255,.05); color: var(--text-sec); }
+
+/* Badges de prioridade */
+.badge-prio-critica { background: rgba(239,68,68,.15); color: #ef4444; }
+.badge-prio-alta    { background: rgba(249,115,22,.15); color: #f97316; }
+.badge-prio-media   { background: rgba(217,172,83,.15); color: #d9ac53; }
+.badge-prio-baixa   { background: rgba(111,168,220,.15); color: #6fa8dc; }
+
+/* ============================================
+   FASE 4 — TABELA CUSTOMIZADA
+   ============================================ */
+.tabela-custom {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    background: var(--card);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+.tabela-custom thead {
+    background: rgba(255,255,255,.02);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+.tabela-custom th {
+    padding: 11px 14px;
+    text-align: left;
+    font-size: 10.5px;
+    color: var(--text-ter);
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+}
+.tabela-custom td {
+    padding: 10px 14px;
+    color: var(--text);
+    border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.tabela-custom tbody tr {
+    transition: background .12s ease;
+}
+.tabela-custom tbody tr:hover {
+    background: rgba(201,166,102,.04);
+}
+.tabela-custom tbody tr:last-child td {
+    border-bottom: none;
+}
+.tabela-custom .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.tabela-custom .truncate {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ============================================
+   FASE 4 — SOMBRAS EM CARDS
+   ============================================ */
+.kpi-card,
+.chart-card {
+    box-shadow: var(--shadow-sm);
+}
+.kpi-card:hover,
+.chart-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+/* ============================================
+   AJUSTE 1 — CHART-CARD COM TABELA (compacto)
+   ============================================ */
+.chart-card.compact {
+    padding: 0;
+}
+.chart-card.compact .chart-card-header {
+    padding: 18px 24px 14px 24px;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--border);
+}
+.chart-card.compact .tabela-custom {
+    border: none;
+    border-radius: 0;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+/* ============================================
+   AJUSTE 2 — ALINHAMENTO DA TABELA
+   ============================================ */
+.tabela-custom th,
+.tabela-custom td {
+    text-align: left;
+}
+.tabela-custom th.num,
+.tabela-custom td.num {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    padding-right: 18px;
+}
+
+/* ============================================
+   AJUSTE 3 — SEM TÍTULO DUPLICADO
+   ============================================ */
+/* Se a tabela for filha direta de um chart-card, remove a borda própria */
+.chart-card > .tabela-custom {
+    border: none;
+    border-radius: 0;
 }
 
 </style>

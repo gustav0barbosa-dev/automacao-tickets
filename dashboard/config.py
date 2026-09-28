@@ -42,3 +42,28 @@ LIMITE_OUTLIER_DIAS = 365
 
 # Mínimo de dias em aberto para considerar "fantasma"
 LIMITE_FANTASMA_DIAS = 365
+
+# ==================== MENU AGRUPADO ====================
+MENU_GRUPOS = [
+    {
+        'titulo': 'ANÁLISE',
+        'icone': 'chart-line',
+        'paginas': [
+            'Visão Geral',
+            'Tempo de Resposta',
+            'SLA',
+            'Produtividade',
+        ],
+    },
+    {
+        'titulo': 'OPERAÇÃO',
+        'icone': 'inbox',
+        'paginas': [
+            'Backlog',
+            'Roteamento',
+            'Reincidência',
+            'Diagnóstico',
+            'Tendências',
+        ],
+    },
+]
