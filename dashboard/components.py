@@ -9,6 +9,7 @@ Se precisar mudar aparência, edite aqui.
 import streamlit as st
 import plotly.graph_objects as go
 from lucide import lucide
+from contextlib import contextmanager
 
 from config import (
     COR_GOLD, COR_BAR, COR_DANGER, COR_TEXT,
@@ -17,19 +18,42 @@ from config import (
 
 
 # ==================== COMPONENTES HTML ====================
-def kpi(label, valor, pill=None, pill_tipo='neutral', ajuda=None):
-    """Renderiza um KPI card (HTML em linha única)."""
+def kpi(label, valor, pill=None, pill_tipo='neutral', ajuda=None,
+        icone=None, tendencia=None, tendencia_valor=None):
+    """
+    KPI card com wrapper para espaçamento consistente.
+    """
     pill_html = f'<span class="kpi-pill {pill_tipo}">{pill}</span>' if pill else ''
-    help_html = f'<div class="kpi-help">{ajuda}</div>' if ajuda else ''
+    icone_html = lucide(icone, 16) if icone else ''
 
+    trend_html = ''
+    if tendencia and tendencia_valor:
+        seta = '↑' if tendencia == 'up' else '↓'
+        cls = 'positive' if tendencia == 'up' else 'negative'
+        trend_html = (
+            f'<div class="kpi-trend">'
+            f'<span class="kpi-trend-value {cls}">{seta} {tendencia_valor}</span>'
+            f'<span>vs. período anterior</span>'
+            f'</div>'
+        )
+
+    ajuda_html = f'<div class="kpi-help">{ajuda}</div>' if ajuda else ''
+
+    # ⬇️ WRAPPER com margin-bottom
     html = (
+        f'<div style="margin-bottom:18px;">'
         f'<div class="kpi-card">'
+        f'<div class="kpi-header">'
         f'<div class="kpi-label">{label}</div>'
-        f'<div class="kpi-value-row">'
+        f'<div class="kpi-icon">{icone_html}</div>'
+        f'</div>'
+        f'<div class="kpi-value-row" style="display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;">'
         f'<span class="kpi-value">{valor}</span>'
         f'{pill_html}'
         f'</div>'
-        f'{help_html}'
+        f'{trend_html}'
+        f'{ajuda_html}'
+        f'</div>'
         f'</div>'
     )
     st.markdown(html, unsafe_allow_html=True)
@@ -316,78 +340,45 @@ def alerta_fantasmas(df, coluna='dias_aberto', limite=LIMITE_FANTASMA_DIAS):
         st.dataframe(tabela, use_container_width=True, hide_index=True)
 
 # ==================== FASE 1 — CHART-CARD ====================
+@contextmanager
 def chart_card(titulo=None, descricao=None, icone=None, compact=False):
-    """
-    Wrapper visual para gráficos/tabelas.
+    css_class = 'chart-card compact' if compact else 'chart-card'
 
-    Args:
-        titulo: título do card (opcional)
-        descricao: subtítulo (opcional)
-        icone: nome do ícone Lucide (opcional)
-        compact: se True, o padding do corpo é 0 (útil para tabelas)
+    icone_html = (
+        f'<span style="color:#c9a666;margin-right:6px;">{lucide(icone, 16)}</span>'
+        if icone else ''
+    )
+    desc_html = f'<div class="chart-card-desc">{descricao}</div>' if descricao else ''
 
-    Uso:
-        with chart_card('Volume de Tickets', 'Criados por mês', icone='chart-line'):
-            st.plotly_chart(fig)
-
-        with chart_card('Tickets Recentes', compact=True):
-            tabela_customizada(...)
-    """
-    from contextlib import contextmanager
-
-    @contextmanager
-    def _render():
-        css_class = 'chart-card compact' if compact else 'chart-card'
-
-        icone_html = (
-            f'<span style="color:#c9a666;margin-right:6px;">{lucide(icone, 16)}</span>'
-            if icone else ''
+    header_html = ''
+    if titulo:
+        header_html = (
+            f'<div class="chart-card-header">'
+            f'<div>'
+            f'<div class="chart-card-title">{icone_html}{titulo}</div>'
+            f'{desc_html}'
+            f'</div>'
+            f'</div>'
         )
-        desc_html = f'<div class="chart-card-desc">{descricao}</div>' if descricao else ''
 
-        header_html = ''
-        if titulo:
-            header_html = (
-                f'<div class="chart-card-header">'
-                f'<div>'
-                f'<div class="chart-card-title">{icone_html}{titulo}</div>'
-                f'{desc_html}'
-                f'</div>'
-                f'</div>'
-            )
+    st.markdown(
+        f'<div class="chart-card-wrapper">'  # ← CLASSE
+        f'<div class="{css_class}">{header_html}',
+        unsafe_allow_html=True,
+    )
 
-        st.markdown(
-            f'<div class="{css_class}">{header_html}',
-            unsafe_allow_html=True,
-        )
-        try:
-            yield
-        finally:
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    return _render()
+    try:
+        yield
+    finally:
+        st.markdown('</div></div>', unsafe_allow_html=True) 
 
 
 # ==================== FASE 1 — KPI MELHORADO ====================
 def kpi(label, valor, pill=None, pill_tipo='neutral', ajuda=None,
         icone=None, tendencia=None, tendencia_valor=None):
-    """
-    KPI card melhorado com ícone, tendência e ajuda.
-
-    Args:
-        label: rótulo do KPI
-        valor: valor principal
-        pill: texto do badge (opcional)
-        pill_tipo: 'positive' | 'negative' | 'neutral'
-        ajuda: texto de ajuda abaixo do valor
-        icone: nome do ícone Lucide (opcional)
-        tendencia: 'up' | 'down' | None
-        tendencia_valor: ex: '+12,4%'
-    """
     pill_html = f'<span class="kpi-pill {pill_tipo}">{pill}</span>' if pill else ''
     icone_html = lucide(icone, 16) if icone else ''
 
-    # Tendência
     trend_html = ''
     if tendencia and tendencia_valor:
         seta = '↑' if tendencia == 'up' else '↓'
@@ -395,13 +386,14 @@ def kpi(label, valor, pill=None, pill_tipo='neutral', ajuda=None,
         trend_html = (
             f'<div class="kpi-trend">'
             f'<span class="kpi-trend-value {cls}">{seta} {tendencia_valor}</span>'
-            f'<span>vs. período anterior</span>'
             f'</div>'
         )
 
     ajuda_html = f'<div class="kpi-help">{ajuda}</div>' if ajuda else ''
 
+    # ⬇️ WRAPPER com classe
     html = (
+        f'<div class="kpi-wrapper">'
         f'<div class="kpi-card">'
         f'<div class="kpi-header">'
         f'<div class="kpi-label">{label}</div>'
@@ -413,6 +405,7 @@ def kpi(label, valor, pill=None, pill_tipo='neutral', ajuda=None,
         f'</div>'
         f'{trend_html}'
         f'{ajuda_html}'
+        f'</div>'
         f'</div>'
     )
     st.markdown(html, unsafe_allow_html=True)
@@ -677,6 +670,9 @@ def card_com_tabela(titulo, descricao, icone, df, colunas, altura_max=500):
     
     # ---------- HEADER DO CARD ----------
     html = (
+        f'<div style="margin-bottom:18px;">'
+        f'<div style="background:#1b2029;border:1px solid rgba(255,255,255,.07);'
+        f'border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.08);">'
         f'<div style="background:#1b2029;border:1px solid rgba(255,255,255,.07);'
         f'border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.08);">'
         # Header
@@ -743,6 +739,65 @@ def card_com_tabela(titulo, descricao, icone, df, colunas, altura_max=500):
                 f'{conteudo}</td>'
             )
         html += '</tr>'
+
+def card_com_barras(titulo, descricao, icone, items, altura_min=0):
+    """
+    Renderiza um card com barras horizontais dentro (HTML único).
     
-    html += '</tbody></table></div></div>'
+    Resolve o problema do `with chart_card()` que não mantém o contexto HTML.
+    """
+    if not items:
+        empty_state()
+        return
+    
+    icone_html = lucide(icone, 16) if icone else ''
+    max_val = max(i['value'] for i in items) or 1
+    
+    # ---------- HEADER DO CARD ----------
+    html = (
+        f'<div style="background:#1b2029;border:1px solid rgba(255,255,255,.07);'
+        f'border-radius:12px;padding:22px 24px;'
+        f'box-shadow:0 1px 2px rgba(0,0,0,.08);'
+        f'margin-bottom:18px;">'
+        # Header
+        f'<div style="display:flex;align-items:flex-start;gap:12px;'
+        f'margin-bottom:18px;">'
+        f'<div>'
+        f'<div style="display:flex;align-items:center;gap:8px;'
+        f'font-family:Fraunces,serif;font-size:16px;font-weight:500;color:#eae7e1;">'
+        f'<span style="color:#c9a666;">{icone_html}</span>'
+        f'{titulo}'
+        f'</div>'
+        f'<div style="font-size:12.5px;color:#5c6270;margin-top:4px;">'
+        f'{descricao}</div>'
+        f'</div>'
+        f'</div>'
+        # Barras
+        f'<div style="display:flex;flex-direction:column;gap:9px;">'
+    )
+    
+    for it in items:
+        pct = max(2, (it['value'] / max_val) * 100)
+        accent = it.get('accent', False)
+        cor = '#e0867a' if accent else '#8b96a8'
+        label = it['label']
+        fmt = it.get('formatted', it['value'])
+        
+        html += (
+            f'<div style="display:flex;align-items:center;gap:12px;">'
+            f'<div style="flex:0 0 180px;font-size:12.5px;color:#9299a6;'
+            f'line-height:1.3;">{label}</div>'
+            f'<div style="flex:1;height:27px;background:rgba(255,255,255,.045);'
+            f'border-radius:4px;position:relative;overflow:hidden;">'
+            f'<div style="height:100%;width:{pct:.1f}%;background:{cor};'
+            f'border-radius:4px;"></div>'
+            f'<div style="position:absolute;top:0;left:10px;height:100%;'
+            f'display:flex;align-items:center;font-size:12px;'
+            f'font-weight:600;color:#eae7e1;">{fmt}</div>'
+            f'</div>'
+            f'</div>'
+        )
+    
+    html += '</tbody></table></div></div></div>'
     st.markdown(html, unsafe_allow_html=True)
+    

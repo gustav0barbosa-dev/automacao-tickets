@@ -741,6 +741,37 @@ input:focus, textarea:focus, select:focus {
     box-shadow: 0 0 0 2px rgba(201,166,102,.15) !important;
 }
 
+/* ============================================
+   FASE 5 — ESPAÇAMENTO (v5 - FINAL)
+   ============================================ */
+
+/* Espaço entre TUDO no main */
+.main .block-container > div {
+    margin-bottom: 18px !important;
+}
+
+/* Especificamente para os wrappers */
+.kpi-wrapper,
+.chart-card-wrapper {
+    margin-bottom: 18px !important;
+    display: block !important;
+}
+
+/* Força o gap no container do Streamlit */
+[data-testid="stVerticalBlock"] {
+    gap: 18px !important;
+}
+
+/* Empurra o título pra baixo */
+.block-container {
+    padding-top: 1.5rem !important;
+}
+
+/* Espaçamento entre st.container() */
+[data-testid="stVerticalBlock"] > [data-testid="stVerticalBlock"] {
+    margin-bottom: 18px !important;
+}
+
 </style>
 """
 
