@@ -1,23 +1,30 @@
 # ============================================================
-# dashboard/pages/produtividade.py
+# dashboard/views/produtividade.py — refatorado (Fase 5)
 # ============================================================
 
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 from components import (
-    page_header, kpi, callout, separador,
-    hbar_list, painel_title, aplicar_tema_plotly,
-    botao_exportar, legenda_grafico, info_grafico,
-    filtrar_outliers, alerta_fantasmas,
+    kpi, callout, separador, hbar_list, painel_title,
+    aplicar_tema_plotly, botao_exportar, legenda_grafico,
+    info_grafico, chart_card, card_com_tabela, global_header,
+    empty_state, insight_card,
+    BADGES_PRIORIDADE, BADGES_STATUS, card_com_barras,
 )
+from lucide import lucide
 from config import COR_BAR, COR_DANGER, COR_TEXT_SEC
 
 
 def render(df):
-    page_header('Produtividade por', 'Responsável',
-                'Análise de volume e tempo por analista.')
+    # ==================== HEADER ====================
+    global_header(
+        'Produtividade por Responsável',
+        'Análise de volume e tempo por analista.',
+        usuario=st.session_state.get('usuario'),
+    )
 
     # ---------- Filtra responsáveis válidos ----------
     df_resp = df[
@@ -27,10 +34,14 @@ def render(df):
     ].copy()
 
     if df_resp.empty:
-        callout('warning', 'Atenção', 'Sem responsáveis identificados no período.')
+        empty_state(
+            titulo='Sem responsáveis identificados',
+            descricao='Nenhum ticket tem responsável no período selecionado.',
+            icone='users',
+        )
         return
 
-    # ---------- FILTRA OUTLIERS (agora sim, df_resp existe) ----------
+    # ---------- Filtra outliers ----------
     df_resp_clean = df_resp[df_resp['dias_resolucao'] <= 365].copy()
 
     # ---------- Agrega por responsável ----------
@@ -50,133 +61,143 @@ def render(df):
     # ---------- KPIs ----------
     col1, col2, col3 = st.columns(3)
     with col1:
-        kpi('Analistas Ativos', f'{len(agg)}')
+        kpi('Analistas Ativos', f'{len(agg)}', icone='users')
     with col2:
-        kpi('Total de Tickets', f'{agg["Total"].sum()}')
+        kpi('Total de Tickets', f'{agg["Total"].sum()}', icone='inbox')
     with col3:
         kpi('Média por Analista', f'{agg["Total"].mean():.0f}',
-            pill='tickets')
+            pill='tickets', icone='activity')
 
-    separador()
-
-    # ---------- Ranking por Volume ----------
-    painel_title('Ranking por <b>Volume</b>')
-    st.markdown(
-        '<div class="page-caption" style="margin-top:-14px;">'
-        'Barras vermelhas = tempo médio acima de 9 dias</div>',
-        unsafe_allow_html=True,
-    )
-
-    hbar_list([
+    # ==================== RANKING POR VOLUME ====================
+    items_ranking = [
         {'label': r['Responsável'],
          'value': int(r['Total']),
          'formatted': str(int(r['Total'])),
          'accent': pd.notna(r['Dias Médio']) and r['Dias Médio'] > 9}
         for _, r in agg.iterrows()
-    ])
+    ]
 
-    separador()
+    card_com_barras(
+        titulo='Ranking por Volume',
+        descricao='Barras vermelhas = tempo médio acima de 9 dias',
+        icone='bar-chart',
+        items=items_ranking,
+    )
 
-    # ---------- Volume vs Tempo ----------
-    painel_title('Volume vs. <b>Tempo Médio</b>')
+    # ==================== VOLUME VS TEMPO ====================
+    agg_plot = agg.dropna(subset=['Dias Médio'])
+    if not agg_plot.empty:
+        with chart_card('Volume vs. Tempo Médio',
+                        'Tamanho do ponto = tickets em aberto · Vermelho = acima de 9 dias',
+                        icone='activity'):
+            fig = go.Figure()
+            for _, r in agg_plot.iterrows():
+                acima = r['Dias Médio'] > 9
+                fig.add_trace(go.Scatter(
+                    x=[r['Total']],
+                    y=[r['Dias Médio']],
+                    mode='markers+text',
+                    marker=dict(
+                        size=max(12, r['Em Aberto'] * 1.6),
+                        color='rgba(224,134,122,.55)' if acima else 'rgba(139,150,168,.5)',
+                        line=dict(color=COR_DANGER if acima else COR_BAR, width=1),
+                    ),
+                    text=[r['Responsável'].split()[0]],
+                    textposition='top center',
+                    textfont=dict(size=10, color=COR_TEXT_SEC),
+                    showlegend=False,
+                    hovertemplate=(
+                        f"<b>{r['Responsável']}</b><br>"
+                        f"Total: {r['Total']}<br>"
+                        f"Dias médio: {r['Dias Médio']:.1f}<br>"
+                        f"Em aberto: {r['Em Aberto']}<extra></extra>"
+                    ),
+                ))
+
+            fig.update_xaxes(title_text='Tickets atribuídos')
+            fig.update_yaxes(title_text='Dias médio de resolução')
+            fig = aplicar_tema_plotly(fig, altura=380)
+            st.plotly_chart(fig, use_container_width=True,
+                            config={'displayModeBar': False})
+
+            legenda_grafico([
+                {'cor': '#8b96a8', 'label': 'OK (até 9 dias)'},
+                {'cor': '#e0867a', 'label': 'Lento (acima de 9 dias)'},
+            ])
+            info_grafico(
+                'Cada bolha é um <b>analista</b>. '
+                '<b>X</b> = tickets atribuídos · <b>Y</b> = dias médios de resolução · '
+                '<b>Tamanho</b> = tickets em aberto.'
+            )
+
+    # ==================== TABELA DETALHADA ====================
+    agg_tabela = agg.copy()
+    agg_tabela = agg_tabela.rename(columns={
+        'Total': 'Total',
+        'Resolvidos': 'Resolvidos',
+        'Em Aberto': 'Em Aberto',
+        'Dias Médio': 'Dias Médio',
+    })
+
+    card_com_tabela(
+        titulo='Tabela Detalhada',
+        descricao='Produtividade por analista',
+        icone='bar-chart',
+        df=agg_tabela,
+        colunas=[
+            {'campo': 'Responsável', 'label': 'Responsável', 'tipo': 'texto'},
+            {'campo': 'Total', 'label': 'Total', 'tipo': 'num'},
+            {'campo': 'Resolvidos', 'label': 'Resolvidos', 'tipo': 'num'},
+            {'campo': 'Em Aberto', 'label': 'Em Aberto', 'tipo': 'num'},
+            {'campo': 'Dias Médio', 'label': 'Dias Médio', 'tipo': 'num'},
+            {'campo': '% Resolução', 'label': '% Resolução', 'tipo': 'num'},
+        ],
+    )
+
+    # ==================== ALERTAS DE SOBRECARGA ====================
     st.markdown(
-        '<div class="page-caption" style="margin-top:-14px;">'
-        'Tamanho do ponto = tickets em aberto · Vermelho = acima de 9 dias</div>',
+        f'<div style="display:flex;align-items:center;gap:10px;'
+        f'margin:24px 0 14px 0;">'
+        f'<span style="color:#c9a666;">{lucide("alert-triangle", 18)}</span>'
+        f'<span style="font-family:Fraunces,serif;font-size:18px;font-weight:600;">'
+        f'Alertas de Sobrecarga</span>'
+        f'</div>',
         unsafe_allow_html=True,
     )
 
-    agg_plot = agg.dropna(subset=['Dias Médio'])
-    if not agg_plot.empty:
-        # Cria o gráfico com Plotly Graph Objects para customização
-        import plotly.graph_objects as go
+    col_a1, col_a2, col_a3 = st.columns(3)
 
-        fig = go.Figure()
-        for _, r in agg_plot.iterrows():
-            acima = r['Dias Médio'] > 9
-            fig.add_trace(go.Scatter(
-                x=[r['Total']],
-                y=[r['Dias Médio']],
-                mode='markers+text',
-                marker=dict(
-                    size=max(12, r['Em Aberto'] * 1.6),
-                    color='rgba(224,134,122,.55)' if acima else 'rgba(139,150,168,.5)',
-                    line=dict(color=COR_DANGER if acima else COR_BAR, width=1),
-                ),
-                text=[r['Responsável'].split()[0]],
-                textposition='top center',
-                textfont=dict(size=10, color=COR_TEXT_SEC),
-                showlegend=False,
-                hovertemplate=(
-                    f"<b>{r['Responsável']}</b><br>"
-                    f"Total: {r['Total']}<br>"
-                    f"Dias médio: {r['Dias Médio']:.1f}<br>"
-                    f"Em aberto: {r['Em Aberto']}<extra></extra>"
-                ),
-            ))
+    # Conta alertas
+    sobrecarregados = agg[agg['Em Aberto'] >= 10]
+    lentos = agg[(agg['Dias Médio'] > 9) & (agg['Em Aberto'] < 10)]
 
-        fig.update_xaxes(title_text='Tickets atribuídos')
-        fig.update_yaxes(title_text='Dias médio de resolução')
-        fig = aplicar_tema_plotly(fig, altura=380)
-        st.plotly_chart(fig, use_container_width=True,
-                        config={'displayModeBar': False})
-
-        legenda_grafico([
-            {'cor': '#8b96a8', 'label': 'OK (até 9 dias)'},
-            {'cor': '#e0867a', 'label': 'Lento (acima de 9 dias)'},
-        ])
-        info_grafico(
-            'Cada bolha é um <b>analista</b>. '
-            '<b>X</b> = tickets atribuídos · <b>Y</b> = dias médios de resolução · '
-            '<b>Tamanho</b> = tickets em aberto. '
-            'Bolsas grandes à direita superior indicam <b>sobrecarga + lentidão</b>.'
+    with col_a1:
+        n = len(sobrecarregados)
+        insight_card(
+            'warning' if n > 0 else 'success',
+            'Sobrecarga',
+            f'{n}',
+            'analista(s) com 10+ em aberto',
+        )
+    with col_a2:
+        n = len(lentos)
+        insight_card(
+            'warning' if n > 0 else 'success',
+            'Lentidão',
+            f'{n}',
+            'analista(s) acima de 9 dias',
+        )
+    with col_a3:
+        n = len(agg)
+        insight_card(
+            'info',
+            'Total Analistas',
+            f'{n}',
+            'ativos no período',
         )
 
+    # ==================== EXPORTAR ====================
     separador()
-
-    # ---------- Tabela detalhada ----------
-    painel_title('Tabela <b>Detalhada</b>')
-    st.dataframe(
-        agg,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            '% Resolução': st.column_config.ProgressColumn(
-                '% Resolução',
-                help='% de tickets resolvidos/fechados',
-                min_value=0,
-                max_value=100,
-                format='%.1f%%',
-            ),
-        },
-    )
-
-    separador()
-
-    # ---------- Alertas de sobrecarga ----------
-    st.markdown('### ⚠️ Alertas de Sobrecarga')
-
-    algum_alerta = False
-    for _, r in agg.iterrows():
-        if r['Em Aberto'] >= 10:
-            callout(
-                'warning', 'Atenção',
-                f'<b>{r["Responsável"]}</b> tem '
-                f'<b>{int(r["Em Aberto"])} tickets em aberto</b>.'
-            )
-            algum_alerta = True
-        elif pd.notna(r['Dias Médio']) and r['Dias Médio'] > 9:
-            callout(
-                'warning', 'Atenção',
-                f'<b>{r["Responsável"]}</b> tem tempo médio de '
-                f'<b>{r["Dias Médio"]:.1f} dias</b> — acima do ideal (>9d).'
-            )
-            algum_alerta = True
-
-    if not algum_alerta:
-        callout('success', 'OK', 'Nenhum alerta de sobrecarga identificado.')
-
-    separador()
-    
     col_esq, col_dir = st.columns([4, 1])
     with col_dir:
         botao_exportar(agg, 'produtividade', key='export_produtividade')
