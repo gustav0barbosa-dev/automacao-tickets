@@ -1,13 +1,14 @@
 # ============================================================
 # dashboard/data.py — Carregamento e cache de dados
 # ============================================================
-# Conecta ao PostgreSQL (Neon) via DATABASE_URL.
-# A URL pode vir de:
-#   1. Variável de ambiente (uso local)
-#   2. Streamlit Secrets (uso no Streamlit Cloud)
+# Conecta ao banco em 3 modos:
+#   1. DATABASE_URL (env var) — Railway
+#   2. Streamlit Secrets      — Streamlit Cloud
+#   3. SQLite local           — dev / testes
 # ============================================================
 
 import os
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -17,11 +18,17 @@ from sqlalchemy import create_engine
 # ==================== CONEXÃO ====================
 def _obter_database_url():
     """
-    Tenta obter a DATABASE_URL de várias fontes:
-        1. Streamlit Secrets (prioridade — funciona na nuvem)
-        2. Variável de ambiente (uso local)
+    Tenta obter a URL do banco em ordem de prioridade:
+        1. Variável de ambiente (Railway, prioridade)
+        2. Streamlit Secrets (Streamlit Cloud)
+        3. SQLite local (fallback para desenvolvimento)
     """
-    # 1. Streamlit Secrets
+    # 1. Variável de ambiente (Railway)
+    url = os.environ.get('DATABASE_URL')
+    if url:
+        return url
+
+    # 2. Streamlit Secrets (Streamlit Cloud)
     try:
         url = st.secrets.get('DATABASE_URL')
         if url:
@@ -29,10 +36,11 @@ def _obter_database_url():
     except Exception:
         pass
 
-    # 2. Variável de ambiente
-    url = os.environ.get('DATABASE_URL')
-    if url:
-        return url
+    # 3. Fallback: SQLite local (só pra DEV)
+    sqlite_path = Path(__file__).resolve().parent.parent / 'dados' / 'tickets.db'
+    if sqlite_path.exists():
+        st.info(f'ℹ️ Usando SQLite local: {sqlite_path.name}')
+        return f'sqlite:///{sqlite_path}'
 
     # Nada encontrado
     return None
@@ -51,126 +59,212 @@ def _limpar_url(url):
 @st.cache_resource
 def get_engine():
     """
-    Cria engine do PostgreSQL (cached).
-    Retorna None se a URL não estiver configurada.
+    Cria engine do banco (cached).
+    Suporta SQLite (local) e PostgreSQL (Railway/Neon).
     """
     url = _obter_database_url()
 
     if not url:
         return None
 
-    url = _limpar_url(url)
-
     try:
+        # ==================== SQLITE ====================
+        if url.startswith('sqlite:///'):
+            engine = create_engine(
+                url,
+                connect_args={'check_same_thread': False},
+            )
+            return engine
+
+        # ==================== POSTGRES ====================
+        url = _limpar_url(url)
         engine = create_engine(
             url,
-            pool_pre_ping=True,      # valida conexão antes de usar
-            pool_recycle=3600,       # recicla conexões antigas
+            pool_pre_ping=True,
+            pool_recycle=3600,
             connect_args={
                 'connect_timeout': 10,
                 'sslmode': 'require',
             },
         )
         return engine
+
     except Exception as e:
-        st.error(f'❌ Erro ao criar engine: {e}')
+        st.error(f'Erro ao criar engine: {e}')
         return None
 
 
-def _executar_query(sql):
-    """Executa uma query e retorna DataFrame. Lança exceção se falhar."""
-    engine = get_engine()
-
-    if engine is None:
-        raise RuntimeError(
-            'DATABASE_URL não configurada. '
-            'Adicione nos Secrets do Streamlit Cloud ou em variável de ambiente.'
-        )
-
-    return pd.read_sql(sql, engine)
-
-
-# ==================== FUNÇÕES DE CARREGAMENTO ====================
+# ==================== CARREGAMENTO ====================
 @st.cache_data(ttl=300)
 def carregar_tickets():
-    """Carrega todos os tickets do banco com colunas derivadas."""
+    """
+    Carrega a tabela `tickets` do banco.
+    Funciona com SQLite e PostgreSQL.
+    Calcula TODAS as colunas derivadas se não existirem.
+    """
+    engine = get_engine()
+    if engine is None:
+        st.error('❌ Banco de dados não configurado.')
+        return pd.DataFrame()
+
     try:
-        df = _executar_query('SELECT * FROM tickets')
+        df = pd.read_sql('SELECT * FROM tickets', engine)
     except Exception as e:
         st.error(f'❌ Erro ao carregar tickets: {e}')
-        return None
+        return pd.DataFrame()
 
     if df.empty:
         return df
 
-    # Converte colunas de data
-    colunas_data = ['criado_data', 'alterado_data', 'previsao',
-                    'data_resolvido', 'data_1_resolvido',
-                    'previsao_esperada', 'snapshot_data']
-    for col in colunas_data:
+    # ---------- CONVERSÕES DE TIPO ----------
+    for col in ['criado_data', 'alterado_data', 'previsao',
+                'data_resolvido', 'data_1_resolvido']:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], errors='coerce')
 
-    # Colunas derivadas
-    df['dias_aberto'] = (pd.Timestamp.now() - df['criado_data']).dt.days
-    df['dias_resolucao'] = (df['data_resolvido'] - df['criado_data']).dt.days
-    df['dias_1a_resposta'] = (df['data_1_resolvido'] - df['criado_data']).dt.days
+    if 'id' in df.columns:
+        df['id'] = pd.to_numeric(df['id'], errors='coerce').astype('Int64')
 
-    # Status SLA
-    df['sla_status'] = 'em_andamento'
-    mask = df['data_resolvido'].notna() & df['previsao'].notna()
-    df.loc[mask & (df['data_resolvido'] <= df['previsao']), 'sla_status'] = 'cumprido'
-    df.loc[mask & (df['data_resolvido'] > df['previsao']), 'sla_status'] = 'estourado'
+    # ---------- COLUNAS DERIVADAS ----------
+    hoje = pd.Timestamp.now()
+
+    # dias_aberto: dias desde criado_data (só pra tickets em aberto)
+    if 'dias_aberto' not in df.columns:
+        df['dias_aberto'] = (hoje - df['criado_data']).dt.days
+
+    # dias_resolucao: dias entre criado_data e data_resolvido
+    if 'dias_resolucao' not in df.columns:
+        if 'data_resolvido' in df.columns:
+            df['dias_resolucao'] = (
+                df['data_resolvido'] - df['criado_data']
+            ).dt.days
+
+    # dias_1_resolucao: dias até a primeira resolução
+    if 'dias_1_resolucao' not in df.columns:
+        if 'data_1_resolvido' in df.columns:
+            df['dias_1_resolucao'] = (
+                df['data_1_resolvido'] - df['criado_data']
+            ).dt.days
+
+    # sla_status: cumprido / estourado
+    if 'sla_status' not in df.columns:
+        if 'previsao' in df.columns and 'data_resolvido' in df.columns:
+            df['sla_status'] = None
+            mask = df['data_resolvido'].notna() & df['previsao'].notna()
+            df.loc[mask & (df['data_resolvido'] <= df['previsao']), 'sla_status'] = 'cumprido'
+            df.loc[mask & (df['data_resolvido'] > df['previsao']), 'sla_status'] = 'estourado'
+
+    # status_resolvido: True/False
+    if 'status_resolvido' not in df.columns and 'status' in df.columns:
+        df['status_resolvido'] = df['status'].isin(['Resolvido', 'Fechado'])
 
     return df
 
 
 @st.cache_data(ttl=300)
-def carregar_snapshots():
-    """Histórico de snapshots (execuções do pipeline)."""
-    try:
-        df = _executar_query(
-            'SELECT * FROM snapshots ORDER BY data_execucao DESC'
-        )
-        if 'data_execucao' in df.columns:
-            df['data_execucao'] = pd.to_datetime(df['data_execucao'], errors='coerce')
-        return df
-    except Exception:
+def carregar_movimentacoes():
+    """Carrega a tabela `movimentacoes` do banco."""
+    engine = get_engine()
+    if engine is None:
         return pd.DataFrame()
 
-
-@st.cache_data(ttl=300)
-def carregar_movimentacoes():
-    """Movimentações (histórico de status)."""
     try:
-        df = _executar_query('SELECT * FROM movimentacoes')
+        df = pd.read_sql('SELECT * FROM movimentacoes', engine)
+    except Exception as e:
+        st.warning(f'⚠️ Erro ao carregar movimentações: {e}')
+        return pd.DataFrame()
+
+    if not df.empty:
         if 'data_movimentacao' in df.columns:
             df['data_movimentacao'] = pd.to_datetime(
                 df['data_movimentacao'], errors='coerce'
             )
-        return df
-    except Exception:
-        return pd.DataFrame()
+        if 'ticket_id' in df.columns:
+            df['ticket_id'] = pd.to_numeric(df['ticket_id'], errors='coerce')
+
+    return df
 
 
 @st.cache_data(ttl=300)
 def carregar_mensagens():
-    """Mensagens (área de fluxo)."""
-    try:
-        df = _executar_query('SELECT * FROM mensagens')
-        if 'data_hora' in df.columns:
-            df['data_hora'] = pd.to_datetime(df['data_hora'], errors='coerce')
-        return df
-    except Exception:
+    """Carrega a tabela `mensagens` do banco."""
+    engine = get_engine()
+    if engine is None:
         return pd.DataFrame()
 
+    try:
+        df = pd.read_sql('SELECT * FROM mensagens', engine)
+    except Exception as e:
+        st.warning(f'⚠️ Erro ao carregar mensagens: {e}')
+        return pd.DataFrame()
+
+    if not df.empty:
+        if 'data_hora' in df.columns:
+            df['data_hora'] = pd.to_datetime(df['data_hora'], errors='coerce')
+        if 'ticket_id' in df.columns:
+            df['ticket_id'] = pd.to_numeric(df['ticket_id'], errors='coerce')
+
+    return df
 
 @st.cache_data(ttl=300)
 def carregar_analistas():
-    """Analistas (tabela de cadastro)."""
-    try:
-        return _executar_query(
-            'SELECT nome, email, empresa_tipo FROM analistas'
-        )
-    except Exception:
+    """
+    Carrega a tabela `analistas` do banco.
+    Usada pela view de Roteamento.
+    """
+    engine = get_engine()
+    if engine is None:
         return pd.DataFrame()
+
+    try:
+        df = pd.read_sql('SELECT * FROM analistas', engine)
+    except Exception as e:
+        st.warning(f'⚠️ Erro ao carregar analistas: {e}')
+        return pd.DataFrame()
+
+    return df
+
+@st.cache_data(ttl=300)
+def carregar_movimentacoes():
+    """Carrega a tabela `movimentacoes` do banco."""
+    engine = get_engine()
+    if engine is None:
+        return pd.DataFrame()
+
+    try:
+        df = pd.read_sql('SELECT * FROM movimentacoes', engine)
+    except Exception as e:
+        st.warning(f'⚠️ Erro ao carregar movimentações: {e}')
+        return pd.DataFrame()
+
+    if not df.empty:
+        if 'data_movimentacao' in df.columns:
+            df['data_movimentacao'] = pd.to_datetime(
+                df['data_movimentacao'], errors='coerce'
+            )
+        if 'ticket_id' in df.columns:
+            df['ticket_id'] = pd.to_numeric(df['ticket_id'], errors='coerce')
+
+    return df
+
+
+@st.cache_data(ttl=300)
+def carregar_mensagens():
+    """Carrega a tabela `mensagens` do banco."""
+    engine = get_engine()
+    if engine is None:
+        return pd.DataFrame()
+
+    try:
+        df = pd.read_sql('SELECT * FROM mensagens', engine)
+    except Exception as e:
+        st.warning(f'⚠️ Erro ao carregar mensagens: {e}')
+        return pd.DataFrame()
+
+    if not df.empty:
+        if 'data_hora' in df.columns:
+            df['data_hora'] = pd.to_datetime(df['data_hora'], errors='coerce')
+        if 'ticket_id' in df.columns:
+            df['ticket_id'] = pd.to_numeric(df['ticket_id'], errors='coerce')
+
+    return df

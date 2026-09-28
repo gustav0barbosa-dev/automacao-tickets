@@ -8,6 +8,7 @@ Se precisar mudar aparência, edite aqui.
 
 import streamlit as st
 import plotly.graph_objects as go
+from lucide import lucide
 
 from config import (
     COR_GOLD, COR_BAR, COR_DANGER, COR_TEXT,
@@ -313,3 +314,134 @@ def alerta_fantasmas(df, coluna='dias_aberto', limite=LIMITE_FANTASMA_DIAS):
         tabela.columns = ['ID', 'Título', 'Status', 'Responsável', 'Dias']
         tabela['Título'] = tabela['Título'].str.slice(0, 60)
         st.dataframe(tabela, use_container_width=True, hide_index=True)
+
+# ==================== FASE 1 — CHART-CARD ====================
+def chart_card(titulo, descricao=None, icone=None, children=None):
+    """
+    Wrapper visual para gráficos.
+
+    Uso:
+        with chart_card('Volume de Tickets', 'Criados por mês', icone='chart-line'):
+            st.plotly_chart(fig)
+    """
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _render():
+        # Header do card
+        icone_html = f'<span class="kpi-icon" style="margin-right:6px;">{lucide(icone, 16)}</span>' if icone else ''
+        desc_html = f'<div class="chart-card-desc">{descricao}</div>' if descricao else ''
+
+        st.markdown(
+            f'<div class="chart-card">'
+            f'<div class="chart-card-header">'
+            f'<div>'
+            f'<div class="chart-card-title">{icone_html}{titulo}</div>'
+            f'{desc_html}'
+            f'</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        try:
+            yield
+        finally:
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    return _render()
+
+
+# ==================== FASE 1 — KPI MELHORADO ====================
+def kpi(label, valor, pill=None, pill_tipo='neutral', ajuda=None,
+        icone=None, tendencia=None, tendencia_valor=None):
+    """
+    KPI card melhorado com ícone, tendência e ajuda.
+
+    Args:
+        label: rótulo do KPI
+        valor: valor principal
+        pill: texto do badge (opcional)
+        pill_tipo: 'positive' | 'negative' | 'neutral'
+        ajuda: texto de ajuda abaixo do valor
+        icone: nome do ícone Lucide (opcional)
+        tendencia: 'up' | 'down' | None
+        tendencia_valor: ex: '+12,4%'
+    """
+    pill_html = f'<span class="kpi-pill {pill_tipo}">{pill}</span>' if pill else ''
+    icone_html = lucide(icone, 16) if icone else ''
+
+    # Tendência
+    trend_html = ''
+    if tendencia and tendencia_valor:
+        seta = '↑' if tendencia == 'up' else '↓'
+        cls = 'positive' if tendencia == 'up' else 'negative'
+        trend_html = (
+            f'<div class="kpi-trend">'
+            f'<span class="kpi-trend-value {cls}">{seta} {tendencia_valor}</span>'
+            f'<span>vs. período anterior</span>'
+            f'</div>'
+        )
+
+    ajuda_html = f'<div class="kpi-help">{ajuda}</div>' if ajuda else ''
+
+    html = (
+        f'<div class="kpi-card">'
+        f'<div class="kpi-header">'
+        f'<div class="kpi-label">{label}</div>'
+        f'<div class="kpi-icon">{icone_html}</div>'
+        f'</div>'
+        f'<div class="kpi-value-row" style="display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;">'
+        f'<span class="kpi-value">{valor}</span>'
+        f'{pill_html}'
+        f'</div>'
+        f'{trend_html}'
+        f'{ajuda_html}'
+        f'</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
+# ==================== FASE 1 — HEADER GLOBAL ====================
+def global_header(titulo_pagina, caption, usuario=None):
+    """
+    Cabeçalho global (barra superior) + título da página.
+
+    Uso:
+        global_header('Visão Geral', 'Panorama dos tickets.', usuario='gustavo')
+    """
+    user_html = ''
+    if usuario:
+        user_html = (
+            f'<div class="global-header-user">'
+            f'{lucide("user", 14)} <span>{usuario}</span>'
+            f'</div>'
+        )
+
+    st.markdown(
+        f'<div class="global-header">'
+        f'<div class="global-header-left">'
+        f'<span style="color:var(--gold);">{lucide("activity", 20)}</span>'
+        f'<span class="global-header-title">HELP360 ANALYTICS</span>'
+        f'</div>'
+        f'<div class="global-header-right">'
+        f'<span class="global-header-icon">{lucide("bell", 18)}</span>'
+        f'{user_html}'
+        f'</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    # Título da página
+    st.markdown(
+        f'<h1 style="margin-top:8px;">{titulo_pagina}</h1>'
+        f'<div class="page-caption">{caption}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+# ==================== FASE 1 — SIDEBAR SECTION ====================
+def sidebar_section(titulo):
+    """Rótulo de seção na sidebar."""
+    st.sidebar.markdown(
+        f'<div class="sidebar-section">{titulo}</div>',
+        unsafe_allow_html=True,
+    )

@@ -281,6 +281,164 @@ footer { visibility: hidden; }
 .filtered-count .lbl {
     font-size:11px; color:var(--text-ter); letter-spacing:.3px;
 }
+
+/* ============================================
+   FASE 1 — CHART-CARD (agrupar gráficos)
+   ============================================ */
+.chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+    transition: border-color .2s ease;
+}
+.chart-card:hover {
+    border-color: rgba(201,166,102,.2);
+}
+.chart-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+.chart-card-title {
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.chart-card-desc {
+    font-size: 12.5px;
+    color: var(--text-ter);
+    margin-top: 4px;
+}
+.chart-card-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* ============================================
+   FASE 1 — KPI CARD MELHORADO
+   ============================================ */
+.kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    min-height: 120px;
+    position: relative;
+    transition: all .2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+.kpi-card:hover {
+    border-color: rgba(201,166,102,.2);
+    box-shadow: 0 4px 16px rgba(0,0,0,.15);
+    transform: translateY(-1px);
+}
+.kpi-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.kpi-label {
+    font-size: 11px;
+    color: var(--text-sec);
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+.kpi-icon {
+    color: var(--text-ter);
+    opacity: .7;
+}
+.kpi-value {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.1;
+    margin-bottom: 6px;
+}
+.kpi-trend {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    color: var(--text-sec);
+}
+.kpi-trend-value {
+    font-weight: 600;
+}
+.kpi-trend-value.positive { color: var(--success); }
+.kpi-trend-value.negative { color: var(--danger); }
+
+/* ============================================
+   FASE 1 — HEADER GLOBAL
+   ============================================ */
+.global-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 4px 16px 4px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+.global-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.global-header-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: .3px;
+}
+.global-header-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.global-header-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    background: rgba(255,255,255,.03);
+    font-size: 12.5px;
+    color: var(--text-sec);
+}
+.global-header-icon {
+    color: var(--text-ter);
+    cursor: pointer;
+    transition: color .15s ease;
+}
+.global-header-icon:hover {
+    color: var(--gold);
+}
+
+/* ============================================
+   FASE 1 — SIDEBAR AGRUPADA
+   ============================================ */
+.sidebar-section {
+    font-size: 10.5px;
+    color: var(--text-ter);
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 18px 14px 8px 14px;
+    margin: 0;
+}
+
 </style>
 """
 
