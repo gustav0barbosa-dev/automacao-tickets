@@ -103,13 +103,7 @@ def peso_por_criticidade(criticidade: str) -> Optional[int]:
 
 # ==================== ADIÇÃO DE HORAS ÚTEIS ====================
 def adicionar_horas_uteis(data_inicio, horas: float) -> pd.Timestamp:
-    """
-    Adiciona N horas úteis a uma data, respeitando o expediente (8h-17h).
-
-    Exemplos:
-        - Começa às 16h de segunda com 3h úteis → termina às 10h de terça
-        - Começa às 10h de sexta com 24h úteis → termina às 16h de terça (pula fim de semana)
-    """
+    """Adiciona N horas úteis a uma data."""
     if pd.isna(data_inicio):
         return None
 
@@ -118,16 +112,24 @@ def adicionar_horas_uteis(data_inicio, horas: float) -> pd.Timestamp:
     elif not isinstance(data_inicio, pd.Timestamp):
         data_inicio = pd.Timestamp(data_inicio)
 
+    # PROTEÇÃO 1: ano fora do range
+    if data_inicio.year < 2000 or data_inicio.year > 2100:
+        return None
+
     atual = data_inicio
     horas_restantes = float(horas)
+    iteracoes = 0
+    MAX_ITERACOES = 10000
 
     while horas_restantes > 0:
-        # 1. Se está fora do expediente, pula para o próximo início
+        iteracoes += 1
+        if iteracoes > MAX_ITERACOES:
+            return atual  # retorna o que tem
+
         if atual.hour >= HORA_FIM_EXPEDIENTE or atual.hour < HORA_INICIO_EXPEDIENTE or not eh_dia_util(atual):
             atual = _proximo_inicio_expediente(atual)
             continue
 
-        # 2. Calcula quanto tempo cabe no dia atual
         fim_do_dia = atual.replace(
             hour=HORA_FIM_EXPEDIENTE, minute=0, second=0, microsecond=0
         )
@@ -176,6 +178,11 @@ def contar_horas_uteis(data_inicio, data_fim) -> float:
     """
     Conta quantas HORAS ÚTEIS existem entre duas datas.
     Respeita expediente (8h-17h), fins de semana e feriados.
+
+    Versão SIMPLES e ROBUSTA:
+      - Itera dia a dia (não hora a hora)
+      - Sem loops aninhados
+      - Sem risco de loop infinito
     """
     if pd.isna(data_inicio) or pd.isna(data_fim):
         return 0
@@ -191,50 +198,51 @@ def contar_horas_uteis(data_inicio, data_fim) -> float:
     inicio = pd.Timestamp(data_inicio)
     fim = pd.Timestamp(data_fim)
 
+    # Proteções
     if fim <= inicio:
         return 0
-
-    # Normaliza para o início do expediente se estiver antes
-    if inicio.hour < HORA_INICIO_EXPEDIENTE or not eh_dia_util(inicio):
-        inicio = _proximo_inicio_expediente(inicio)
-    elif inicio.hour >= HORA_FIM_EXPEDIENTE:
-        inicio = _proximo_inicio_expediente(inicio)
-
-    # Se fim caiu fora do expediente, ajusta para o fim do último dia útil
-    if not eh_dia_util(fim) or fim.hour < HORA_INICIO_EXPEDIENTE:
-        # Retrocede até o último dia útil às 17h
-        fim = pd.Timestamp(fim)
-        while not eh_dia_util(fim):
-            fim = (fim - pd.Timedelta(days=1))
-        fim = fim.replace(hour=HORA_FIM_EXPEDIENTE, minute=0, second=0, microsecond=0)
-    elif fim.hour > HORA_FIM_EXPEDIENTE:
-        fim = fim.replace(hour=HORA_FIM_EXPEDIENTE, minute=0, second=0, microsecond=0)
-
-    if fim <= inicio:
+    if inicio.year < 2000 or inicio.year > 2100:
+        return 0
+    if fim.year < 2000 or fim.year > 2100:
+        return 0
+    if (fim - inicio).days > 3650:
         return 0
 
-    # Conta horas
     total_horas = 0.0
-    atual = inicio
+    dia_atual = inicio.normalize()  # Zera horas
+    dia_fim = fim.normalize()
 
-    while atual < fim:
-        # Se é dia útil e está dentro do expediente
-        if eh_dia_util(atual) and HORA_INICIO_EXPEDIENTE <= atual.hour < HORA_FIM_EXPEDIENTE:
-            fim_do_dia = atual.replace(
-                hour=HORA_FIM_EXPEDIENTE, minute=0, second=0, microsecond=0
-            )
-            if fim_do_dia > fim:
-                fim_do_dia = fim
+    # Itera dia a dia
+    while dia_atual <= dia_fim:
+        # Pula fins de semana e feriados
+        if not eh_dia_util(dia_atual):
+            dia_atual += pd.Timedelta(days=1)
+            continue
 
-            total_horas += (fim_do_dia - atual).total_seconds() / 3600
-            atual = fim_do_dia
+        # Define o início do expediente neste dia
+        h_inicio = dia_atual.replace(
+            hour=HORA_INICIO_EXPEDIENTE, minute=0, second=0, microsecond=0
+        )
+        h_fim = dia_atual.replace(
+            hour=HORA_FIM_EXPEDIENTE, minute=0, second=0, microsecond=0
+        )
 
-        # Avança para o próximo início de expediente
-        atual = _proximo_inicio_expediente(atual + pd.Timedelta(seconds=1))
-        if atual > fim:
-            break
+        # Ajusta no primeiro dia: não conta antes de `inicio`
+        if dia_atual == inicio.normalize() and inicio > h_inicio:
+            h_inicio = inicio
 
-    return total_horas
+        # Ajusta no último dia: não conta depois de `fim`
+        if dia_atual == fim.normalize() and fim < h_fim:
+            h_fim = fim
+
+        # Se o intervalo é válido (dentro do expediente)
+        if h_inicio < h_fim:
+            horas_dia = (h_fim - h_inicio).total_seconds() / 3600
+            total_horas += horas_dia
+
+        dia_atual += pd.Timedelta(days=1)
+
+    return round(total_horas, 2)
 
 
 # ==================== PREVISÃO ESPERADA ====================

@@ -36,6 +36,7 @@ from selenium.webdriver.common.by import By
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ_PROJETO / 'src'))
 
+from utils_anonimizacao import anonimizar_texto
 from utils_help360 import criar_navegador, realizar_login
 
 
@@ -229,8 +230,6 @@ def persistir_movimentacoes(conn, ticket_id, df_hist):
 
     inseridos = 0
     status_anterior = None
-
-    from utils_anonimizacao import anonimizar_texto
 
     # ... (código anterior)
 
@@ -455,7 +454,9 @@ def processar_ticket(navegador, conn, ticket_id):
         return (True, movs, msgs, None)
 
     except Exception as e:
-        return (False, 0, 0, f'exceção: {type(e).__name__}')
+        import traceback
+        traceback.print_exc()
+        return (False, 0, 0, f'exceção: {type(e).__name__}: {e}')
 
 # ==================== detecta backlogs ====================
 def detectar_backlog(navegador):
