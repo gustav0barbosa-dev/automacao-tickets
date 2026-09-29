@@ -9,6 +9,7 @@ Programa1) e persiste no banco de dados SQLite.
 
 - Cria o banco e as tabelas se não existirem (executa schema.sql)
 - Faz backup do banco antes de cada escrita
+- FILTRA tickets da Atlantic Solutions (empresa excluída)
 - Faz UPSERT (insert ou update) dos tickets por ID
 - Registra um snapshot da execução
 - Não gera arquivos intermediários (só escrita no banco)
@@ -25,7 +26,6 @@ from utils_anonimizacao import anonimizar_texto
 import pandas as pd
 
 
-
 # ==================== CAMINHOS ====================
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 PASTA_DADOS = RAIZ_PROJETO / 'dados'
@@ -35,6 +35,10 @@ CAMINHO_BANCO = PASTA_DADOS / 'tickets.db'
 CAMINHO_SCHEMA = PASTA_DADOS / 'schema.sql'
 PASTA_DOWNLOADS = Path(os.path.expanduser('~')) / 'Downloads'
 CAMINHO_TICKETS = PASTA_DOWNLOADS / 'tickets.xlsx'
+
+
+# ==================== EMPRESAS EXCLUÍDAS ====================
+EMPRESAS_EXCLUIDAS = ['Atlantic Solutions', 'Atlantic', 'ATLANTIC']
 
 
 # ==================== LOG ====================
@@ -106,6 +110,45 @@ def carregar_tickets() -> pd.DataFrame:
     return df
 
 
+# ==================== FILTRO DE EMPRESAS ====================
+def filtrar_empresas_excluidas(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Remove tickets de empresas excluídas (Atlantic Solutions).
+
+    Estratégia:
+        1. Tenta filtrar pela coluna 'empresa' (case-insensitive)
+        2. Se não existir, tenta pela coluna 'Empresa'
+        3. Se não existir, pula o filtro com aviso
+    """
+    # Procura a coluna de empresa (case-insensitive)
+    coluna_empresa = None
+    for col in df.columns:
+        if col.lower() == 'empresa':
+            coluna_empresa = col
+            break
+
+    if coluna_empresa is None:
+        log('⚠️  Coluna "empresa" não encontrada — filtro da Atlantic pulado')
+        log(f'   Colunas disponíveis: {df.columns.tolist()}')
+        return df
+
+    # Conta quantos serão removidos
+    mask = df[coluna_empresa].isin(EMPRESAS_EXCLUIDAS)
+    n_removidos = int(mask.sum())
+
+    if n_removidos > 0:
+        log(f'🚫 Removendo {n_removidos} tickets da Atlantic Solutions...')
+        # Log dos IDs removidos (útil pra auditoria)
+        ids_removidos = df.loc[mask, 'ID'].tolist() if 'ID' in df.columns else []
+        if ids_removidos:
+            log(f'   IDs removidos: {ids_removidos[:10]}{"..." if len(ids_removidos) > 10 else ""}')
+        df = df[~mask].copy()
+    else:
+        log('✅ Nenhum ticket da Atlantic Solutions encontrado')
+
+    return df
+
+
 # ==================== TRANSFORMAÇÃO ====================
 def preparar_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """Normaliza tipos e nomes de colunas para o banco."""
@@ -114,6 +157,7 @@ def preparar_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         'Título':                'titulo',
         'Titulo':                'titulo',
         'Descrição':             'descricao',
+        'Descricao':             'descricao',
         'Categoria':             'categoria',
         'Subcategoria':          'subcategoria',
         'Status':                'status',
@@ -124,6 +168,7 @@ def preparar_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         'Criado Data':           'criado_data',
         'Alterado Data':         'alterado_data',
         'Previsão':              'previsao',
+        'Previsao':              'previsao',
         'Data do Resolvido':     'data_resolvido',
         'Data do 1°resolvido':   'data_1_resolvido',
     }
@@ -209,9 +254,10 @@ def persistir_tickets(conn, df: pd.DataFrame) -> dict:
         atualizado_em       = CURRENT_TIMESTAMP
     """
 
-# ==================== ANONIMIZAÇÃO LGPD ====================
-    CAMPOS_ANONIMIZAR = ['titulo', 'descricao', 'solicitante',
-                        'responsavel_atual', 'solucao', 'diagnostico']
+    # ==================== ANONIMIZAÇÃO LGPD ====================
+    # Só anonimiza campos de TEXTO LIVRE (contêm dados de beneficiários).
+    # NÃO anonimiza 'solicitante' nem 'responsavel_atual' (analistas internos).
+    CAMPOS_ANONIMIZAR = ['titulo', 'descricao', 'solucao', 'diagnostico']
 
     for campo in CAMPOS_ANONIMIZAR:
         if campo in df.columns:
@@ -258,7 +304,6 @@ def registrar_snapshot(conn, stats: dict, tempo_execucao: float):
     """Registra a execução na tabela snapshots."""
     cursor = conn.cursor()
 
-    # Descobre quantos tickets existem no total agora
     cursor.execute('SELECT COUNT(*) FROM tickets')
     total = cursor.fetchone()[0]
 
@@ -302,24 +347,29 @@ def main():
         # 3. Ler tickets.xlsx
         df = carregar_tickets()
 
-        # 4. Preparar dados
+        # 4. FILTRAR empresas excluídas (Atlantic) ← NOVO
+        log('🚫 Filtrando empresas excluídas...')
+        df = filtrar_empresas_excluidas(df)
+        log(f'   Total após filtro: {len(df)} linhas')
+
+        # 5. Preparar dados
         log('🔄 Preparando dados...')
         df = preparar_dataframe(df)
         log(f'   Linhas válidas: {len(df)}')
 
-        # 5. Persistir
+        # 6. Persistir
         log('💾 Persistindo no banco...')
         stats = persistir_tickets(conn, df)
         log(f'   ✅ Novos      : {stats["novos"]}')
         log(f'   ✅ Atualizados: {stats["atualizados"]}')
         log(f'   ✅ Total      : {stats["total"]}')
 
-        # 6. Snapshot
+        # 7. Snapshot
         tempo = (datetime.now() - inicio).total_seconds()
         registrar_snapshot(conn, stats, tempo)
         log(f'📸 Snapshot registrado ({tempo:.1f}s)')
 
-        # 7. Fecha
+        # 8. Fecha
         conn.close()
 
         print()
