@@ -66,4 +66,11 @@ MENU_GRUPOS = [
             'Tendências',
         ],
     },
+    {
+        'titulo': 'FERRAMENTAS',
+        'icone': 'download',
+        'paginas': [
+            'Relatórios',
+        ],
+    },
 ]

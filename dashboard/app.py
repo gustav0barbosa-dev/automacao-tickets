@@ -7,13 +7,19 @@ Dashboard da Automação Help360.
 Uso:
     streamlit run dashboard/app.py
 """
-import unicodedata
 import sys
 from pathlib import Path
 
-# Adiciona a pasta dashboard/ ao sys.path para permitir imports
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+# ==================== PATHS ====================
+RAIZ = Path(__file__).resolve().parent.parent
 
+# Adiciona pastas ao sys.path
+sys.path.insert(0, str(RAIZ / 'dashboard'))  # ← pra importar auth, config, etc
+sys.path.insert(0, str(RAIZ / 'src'))         # ← pra utils_anonimizacao, utils_sla
+sys.path.insert(0, str(RAIZ / 'scripts'))     # ← pra relatorio_resolvidos
+
+# ==================== IMPORTS ====================
+import unicodedata
 import streamlit as st
 
 from auth import tela_login, logout, usuario_atual
@@ -22,7 +28,7 @@ from auth import tela_login, logout, usuario_atual
 if not tela_login():
     st.stop()
 
-from config import MENU_PAGINAS
+from config import MENU_PAGINAS, MENU_GRUPOS
 from theme import aplicar_tema
 from data import carregar_tickets
 from filters import aplicar_filtros
