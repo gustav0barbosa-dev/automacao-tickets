@@ -18,29 +18,39 @@ RAIZ = Path(__file__).resolve().parent.parent
 BANCO = RAIZ / 'dados' / 'tickets.db'
 
 
-def gerar_relatorio(inicio: str, fim: str) -> pd.DataFrame:
+def gerar_relatorio(inicio: str, fim: str, engine=None) -> pd.DataFrame:
     """
     Gera o relatório de tickets fechados no período.
-
-    Lógica:
-        1. Filtra tickets que têm movimentação → 'Fechado' no período
-        2. Para cada um:
-           - 1º resolvido = primeira movimentação → 'Resolvido'
-           - Último resolvido = última movimentação → 'Resolvido'
-             ANTES do 'Fechado'
-        3. Junta com tickets.previsao
+    
+    Args:
+        inicio: data inicial (YYYY-MM-DD)
+        fim: data final (YYYY-MM-DD)
+        engine: engine do SQLAlchemy (opcional — se None, usa SQLite local)
     """
-    conn = sqlite3.connect(BANCO)
+    # ==================== ENGINE ====================
+    if engine is None:
+        # Fallback: SQLite local
+        conn = sqlite3.connect(BANCO)
+        params = (inicio, fim)  # SQLite usa ?
+        placeholder_inicio = '?'
+        placeholder_fim = '?'
+    else:
+        # Postgres (Neon/Railway)
+        conn = engine
+        params = {'inicio': f'{inicio} 00:00:00', 'fim': f'{fim} 23:59:59'}
+        placeholder_inicio = ':inicio'
+        placeholder_fim = ':fim'
 
-    query = '''
+    # ==================== QUERY ====================
+    # Usa placeholder dinâmico
+    query = f'''
     WITH tickets_fechados AS (
         SELECT DISTINCT ticket_id
         FROM movimentacoes
         WHERE para_status = 'Fechado'
-          AND data_movimentacao >= :inicio
-          AND data_movimentacao <= :fim
+          AND data_movimentacao >= {placeholder_inicio}
+          AND data_movimentacao <= {placeholder_fim}
     ),
-
     primeiro_resolvido AS (
         SELECT
             ticket_id,
@@ -54,7 +64,6 @@ def gerar_relatorio(inicio: str, fim: str) -> pd.DataFrame:
         WHERE para_status = 'Resolvido'
           AND ticket_id IN (SELECT ticket_id FROM tickets_fechados)
     ),
-
     ultimo_resolvido AS (
         SELECT
             m.ticket_id,
@@ -68,7 +77,6 @@ def gerar_relatorio(inicio: str, fim: str) -> pd.DataFrame:
         WHERE m.para_status = 'Resolvido'
           AND m.ticket_id IN (SELECT ticket_id FROM tickets_fechados)
     )
-
     SELECT
         t.id AS "ID Ticket",
         pr.data_movimentacao AS "Data 1º Resolvido",
@@ -83,15 +91,10 @@ def gerar_relatorio(inicio: str, fim: str) -> pd.DataFrame:
     ORDER BY pr.data_movimentacao ASC
     '''
 
-    df = pd.read_sql(
-        query,
-        conn,
-        params={
-            'inicio': f'{inicio} 00:00:00',
-            'fim': f'{fim} 23:59:59',
-        },
-    )
-    conn.close()
+    df = pd.read_sql(query, conn, params=params)
+    
+    if engine is None:
+        conn.close()
 
     return df
 

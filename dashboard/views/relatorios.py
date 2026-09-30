@@ -7,6 +7,7 @@ from datetime import datetime
 
 import pandas as pd
 import streamlit as st
+from data import get_engine
 
 from components import (
     global_header, chart_card, empty_state, kpi,
@@ -62,10 +63,42 @@ def render(df):
 
     # Gera o relatório
     with st.spinner('Gerando relatório...'):
-        df_relatorio = gerar_relatorio(
-            str(data_inicio),
-            str(data_fim),
-        )
+        engine = get_engine()
+        try:
+            df_relatorio = gerar_relatorio(
+                str(data_inicio),
+                str(data_fim),
+                engine=engine,
+            )
+        except Exception as e:
+            st.error(f'❌ Erro ao gerar relatório: {e}')
+
+            # ==================== DEBUG: mostra o schema ====================
+            with st.expander('🔍 Debug: Schema do banco'):
+                from data import get_engine
+                from sqlalchemy import text
+
+                engine = get_engine()
+                if engine:
+                    with engine.connect() as conn:
+                        st.write('**Colunas de tickets:**')
+                        r = conn.execute(text('''
+                            SELECT column_name, data_type
+                            FROM information_schema.columns
+                            WHERE table_name = 'tickets'
+                            ORDER BY ordinal_position
+                        '''))
+                        st.dataframe([dict(row._mapping) for row in r])
+
+                        st.write('**Colunas de movimentacoes:**')
+                        r = conn.execute(text('''
+                            SELECT column_name, data_type
+                            FROM information_schema.columns
+                            WHERE table_name = 'movimentacoes'
+                            ORDER BY ordinal_position
+                        '''))
+                        st.dataframe([dict(row._mapping) for row in r])
+            return
 
     if df_relatorio.empty:
         empty_state(
