@@ -58,59 +58,52 @@ def _limpar_url(url):
 
 @st.cache_resource
 def get_engine():
-    """
-    Cria engine do banco (cached).
-    Suporta SQLite (local) e PostgreSQL (Railway/Neon).
-    """
+    """Cria engine do banco (cached)."""
     url = _obter_database_url()
-
     if not url:
         return None
 
-    try:
-        # ==================== SQLITE ====================
-        if url.startswith('sqlite:///'):
-            engine = create_engine(
-                url,
-                connect_args={'check_same_thread': False},
-            )
-            return engine
+    # SQLite (local)
+    if url.startswith('sqlite:///'):
+        return create_engine(
+            url,
+            connect_args={'check_same_thread': False},
+        )
 
-        # ==================== POSTGRES ====================
-        url = _limpar_url(url)
+    # Postgres (Neon/Railway)
+    url = _limpar_url(url)
+    try:
         engine = create_engine(
             url,
             pool_pre_ping=True,
             pool_recycle=3600,
+            pool_size=5,
+            max_overflow=10,
             connect_args={
-                'connect_timeout': 10,
+                'connect_timeout': 30,
                 'sslmode': 'require',
+                'keepalives': 1,
+                'keepalives_idle': 30,
+                'keepalives_interval': 10,
+                'keepalives_count': 5,
             },
         )
         return engine
-
     except Exception as e:
         st.error(f'Erro ao criar engine: {e}')
         return None
 
-
 # ==================== CARREGAMENTO ====================
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=3600)
 def carregar_tickets():
-    """
-    Carrega a tabela `tickets` do banco.
-    Funciona com SQLite e PostgreSQL.
-    Calcula TODAS as colunas derivadas se não existirem.
-    """
     engine = get_engine()
     if engine is None:
-        st.error('❌ Banco de dados não configurado.')
         return pd.DataFrame()
 
     try:
         df = pd.read_sql('SELECT * FROM tickets', engine)
     except Exception as e:
-        st.error(f'❌ Erro ao carregar tickets: {e}')
+        st.error(f'Erro ao carregar tickets: {e}')
         return pd.DataFrame()
 
     if df.empty:
