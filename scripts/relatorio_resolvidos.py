@@ -34,15 +34,14 @@ def gerar_relatorio(inicio: str, fim: str) -> pd.DataFrame:
 
     query = '''
     WITH tickets_fechados AS (
-        -- Tickets que têm pelo menos uma movimentação → 'Fechado' no período
         SELECT DISTINCT ticket_id
         FROM movimentacoes
         WHERE para_status = 'Fechado'
-          AND DATE(data_movimentacao) BETWEEN ? AND ?
+          AND data_movimentacao >= :inicio
+          AND data_movimentacao <= :fim
     ),
 
     primeiro_resolvido AS (
-        -- Primeira movimentação → 'Resolvido' de cada ticket
         SELECT
             ticket_id,
             data_movimentacao,
@@ -57,7 +56,6 @@ def gerar_relatorio(inicio: str, fim: str) -> pd.DataFrame:
     ),
 
     ultimo_resolvido AS (
-        -- Última movimentação → 'Resolvido' ANTES do 'Fechado'
         SELECT
             m.ticket_id,
             m.data_movimentacao,
@@ -69,22 +67,15 @@ def gerar_relatorio(inicio: str, fim: str) -> pd.DataFrame:
         FROM movimentacoes m
         WHERE m.para_status = 'Resolvido'
           AND m.ticket_id IN (SELECT ticket_id FROM tickets_fechados)
-          AND m.data_movimentacao < COALESCE(
-              (SELECT MIN(m2.data_movimentacao)
-               FROM movimentacoes m2
-               WHERE m2.ticket_id = m.ticket_id
-                 AND m2.para_status = 'Fechado'),
-              '9999-12-31'
-          )
     )
 
     SELECT
-        t.id                                AS "ID Ticket",
-        pr.data_movimentacao                AS "Data 1º Resolvido",
-        pr.autor                            AS "Alterado por (1º)",
-        ur.data_movimentacao                AS "Data Último Resolvido",
-        ur.autor                            AS "Alterado por (Último)",
-        t.previsao                          AS "Previsão"
+        t.id AS "ID Ticket",
+        pr.data_movimentacao AS "Data 1º Resolvido",
+        pr.autor AS "Alterado por (1º)",
+        ur.data_movimentacao AS "Data Último Resolvido",
+        ur.autor AS "Alterado por (Último)",
+        t.previsao AS "Previsão"
     FROM tickets t
     INNER JOIN tickets_fechados tf ON tf.ticket_id = t.id
     LEFT JOIN primeiro_resolvido pr ON pr.ticket_id = t.id AND pr.rn = 1
@@ -92,7 +83,14 @@ def gerar_relatorio(inicio: str, fim: str) -> pd.DataFrame:
     ORDER BY pr.data_movimentacao ASC
     '''
 
-    df = pd.read_sql(query, conn, params=(inicio, fim))
+    df = pd.read_sql(
+        query,
+        conn,
+        params={
+            'inicio': f'{inicio} 00:00:00',
+            'fim': f'{fim} 23:59:59',
+        },
+    )
     conn.close()
 
     return df
