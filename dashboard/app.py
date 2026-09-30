@@ -8,18 +8,18 @@ Uso:
     streamlit run dashboard/app.py
 """
 import sys
+import unicodedata
 from pathlib import Path
 
 # ==================== PATHS ====================
 RAIZ = Path(__file__).resolve().parent.parent
 
 # Adiciona pastas ao sys.path
-sys.path.insert(0, str(RAIZ / 'dashboard'))  # ← pra importar auth, config, etc
-sys.path.insert(0, str(RAIZ / 'src'))         # ← pra utils_anonimizacao, utils_sla
-sys.path.insert(0, str(RAIZ / 'scripts'))     # ← pra relatorio_resolvidos
+sys.path.insert(0, str(RAIZ / 'dashboard'))  # pra importar auth, config, theme
+sys.path.insert(0, str(RAIZ / 'src'))         # pra importar utils_anonimizacao, utils_sla
+sys.path.insert(0, str(RAIZ / 'scripts'))     # pra importar relatorio_resolvidos
 
 # ==================== IMPORTS ====================
-import unicodedata
 import streamlit as st
 
 from auth import tela_login, logout, usuario_atual
