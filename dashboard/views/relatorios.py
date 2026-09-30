@@ -83,11 +83,47 @@ def render(df):
     # ==================== GERA O RELATÓRIO ====================
     with st.spinner('Gerando relatório...'):
         try:
-            df_relatorio = gerar_relatorio(
-                str(data_inicio),
-                str(data_fim),
-                engine=engine,
+# ==================== QUERY DIRETO (sem depender do script) ====================
+            query = f'''
+            WITH tickets_fechados AS (
+                SELECT DISTINCT ticket_id
+                FROM movimentacoes
+                WHERE para_status = 'Fechado'
+                AND data_movimentacao >= '{data_inicio} 00:00:00'
+                AND data_movimentacao <= '{data_fim} 23:59:59'
+            ),
+            primeiro_resolvido AS (
+                SELECT
+                    ticket_id, data_movimentacao, autor,
+                    ROW_NUMBER() OVER (PARTITION BY ticket_id ORDER BY data_movimentacao ASC, id ASC) AS rn
+                FROM movimentacoes
+                WHERE para_status = 'Resolvido'
+                AND ticket_id IN (SELECT ticket_id FROM tickets_fechados)
+            ),
+            ultimo_resolvido AS (
+                SELECT
+                    m.ticket_id, m.data_movimentacao, m.autor,
+                    ROW_NUMBER() OVER (PARTITION BY m.ticket_id ORDER BY m.data_movimentacao DESC, m.id DESC) AS rn
+                FROM movimentacoes m
+                WHERE m.para_status = 'Resolvido'
+                AND m.ticket_id IN (SELECT ticket_id FROM tickets_fechados)
             )
+            SELECT
+                t.id AS "ID Ticket",
+                pr.data_movimentacao AS "Data 1º Resolvido",
+                pr.autor AS "Alterado por (1º)",
+                ur.data_movimentacao AS "Data Último Resolvido",
+                ur.autor AS "Alterado por (Último)",
+                t.previsao AS "Previsão"
+            FROM tickets t
+            INNER JOIN tickets_fechados tf ON tf.ticket_id = t.id
+            LEFT JOIN primeiro_resolvido pr ON pr.ticket_id = t.id AND pr.rn = 1
+            LEFT JOIN ultimo_resolvido ur ON ur.ticket_id = t.id AND ur.rn = 1
+            ORDER BY pr.data_movimentacao ASC
+            '''
+
+            df_relatorio = pd.read_sql(query, engine)
+            
         except Exception as e:
             st.error(f'❌ Erro ao gerar relatório: {e}')
             st.exception(e)
