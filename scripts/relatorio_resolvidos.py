@@ -25,31 +25,31 @@ def gerar_relatorio(inicio: str, fim: str, engine=None) -> pd.DataFrame:
     Args:
         inicio: data inicial (YYYY-MM-DD)
         fim: data final (YYYY-MM-DD)
-        engine: engine do SQLAlchemy (opcional — se None, usa SQLite local)
+        engine: engine do SQLAlchemy (opcional)
+                Se None, usa SQLite local
     """
     # ==================== ENGINE ====================
     if engine is None:
         # Fallback: SQLite local
         conn = sqlite3.connect(BANCO)
-        params = (inicio, fim)  # SQLite usa ?
-        placeholder_inicio = '?'
-        placeholder_fim = '?'
+        params = (f'{inicio} 00:00:00', f'{fim} 23:59:59')
+        ph_inicio = '?'
+        ph_fim = '?'
     else:
-        # Postgres (Neon/Railway)
+        # Postgres (via engine do dashboard)
         conn = engine
         params = {'inicio': f'{inicio} 00:00:00', 'fim': f'{fim} 23:59:59'}
-        placeholder_inicio = ':inicio'
-        placeholder_fim = ':fim'
+        ph_inicio = ':inicio'
+        ph_fim = ':fim'
 
     # ==================== QUERY ====================
-    # Usa placeholder dinâmico
     query = f'''
     WITH tickets_fechados AS (
         SELECT DISTINCT ticket_id
         FROM movimentacoes
         WHERE para_status = 'Fechado'
-          AND data_movimentacao >= {placeholder_inicio}
-          AND data_movimentacao <= {placeholder_fim}
+          AND data_movimentacao >= {ph_inicio}
+          AND data_movimentacao <= {ph_fim}
     ),
     primeiro_resolvido AS (
         SELECT
@@ -92,7 +92,7 @@ def gerar_relatorio(inicio: str, fim: str, engine=None) -> pd.DataFrame:
     '''
 
     df = pd.read_sql(query, conn, params=params)
-    
+
     if engine is None:
         conn.close()
 
