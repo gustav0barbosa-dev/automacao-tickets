@@ -85,29 +85,67 @@ def render(df):
         try:
 # ==================== QUERY DIRETO (sem depender do script) ====================
             query = f'''
-            WITH tickets_fechados AS (
+            WITH
+            -- 1. Tickets que FECHARAM no período
+            tickets_fechados AS (
                 SELECT DISTINCT ticket_id
                 FROM movimentacoes
                 WHERE para_status = 'Fechado'
                 AND data_movimentacao >= '{data_inicio} 00:00:00'
                 AND data_movimentacao <= '{data_fim} 23:59:59'
             ),
-            primeiro_resolvido AS (
-                SELECT
-                    ticket_id, data_movimentacao, autor,
-                    ROW_NUMBER() OVER (PARTITION BY ticket_id ORDER BY data_movimentacao ASC, id ASC) AS rn
+
+            -- 2. Tickets que passaram por RESOLVIDO (obrigatório)
+            tickets_resolvidos AS (
+                SELECT DISTINCT ticket_id
                 FROM movimentacoes
                 WHERE para_status = 'Resolvido'
-                AND ticket_id IN (SELECT ticket_id FROM tickets_fechados)
             ),
+
+            -- 3. Só os que FECHARAM **E** PASSARAM por RESOLVIDO
+            tickets_validos AS (
+                SELECT tf.ticket_id
+                FROM tickets_fechados tf
+                INNER JOIN tickets_resolvidos tr ON tr.ticket_id = tf.ticket_id
+            ),
+
+            -- 4. Primeiro resolvido
+            primeiro_resolvido AS (
+                SELECT
+                    ticket_id,
+                    data_movimentacao,
+                    autor,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY ticket_id
+                        ORDER BY data_movimentacao ASC, id ASC
+                    ) AS rn
+                FROM movimentacoes
+                WHERE para_status = 'Resolvido'
+                AND ticket_id IN (SELECT ticket_id FROM tickets_validos)
+            ),
+
+            -- 5. Último resolvido ANTES do Fechado
             ultimo_resolvido AS (
                 SELECT
-                    m.ticket_id, m.data_movimentacao, m.autor,
-                    ROW_NUMBER() OVER (PARTITION BY m.ticket_id ORDER BY m.data_movimentacao DESC, m.id DESC) AS rn
+                    m.ticket_id,
+                    m.data_movimentacao,
+                    m.autor,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY m.ticket_id
+                        ORDER BY m.data_movimentacao DESC, m.id DESC
+                    ) AS rn
                 FROM movimentacoes m
                 WHERE m.para_status = 'Resolvido'
-                AND m.ticket_id IN (SELECT ticket_id FROM tickets_fechados)
+                AND m.ticket_id IN (SELECT ticket_id FROM tickets_validos)
+                AND m.data_movimentacao <= COALESCE(
+                    (SELECT MAX(m2.data_movimentacao)
+                    FROM movimentacoes m2
+                    WHERE m2.ticket_id = m.ticket_id
+                        AND m2.para_status = 'Fechado'),
+                    '9999-12-31'
+                )
             )
+
             SELECT
                 t.id AS "ID Ticket",
                 pr.data_movimentacao AS "Data 1º Resolvido",
@@ -116,7 +154,7 @@ def render(df):
                 ur.autor AS "Alterado por (Último)",
                 t.previsao AS "Previsão"
             FROM tickets t
-            INNER JOIN tickets_fechados tf ON tf.ticket_id = t.id
+            INNER JOIN tickets_validos tv ON tv.ticket_id = t.id
             LEFT JOIN primeiro_resolvido pr ON pr.ticket_id = t.id AND pr.rn = 1
             LEFT JOIN ultimo_resolvido ur ON ur.ticket_id = t.id AND ur.rn = 1
             ORDER BY pr.data_movimentacao ASC
