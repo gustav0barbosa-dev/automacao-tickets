@@ -1,18 +1,14 @@
 # ============================================================
-# programa4_persistir.py
+# programa4_persistir.py (v3 — com sincronização)
 # ============================================================
 """
 Programa 4 — Persistência no SQLite.
 
-Lê o arquivo 'tickets.xlsx' (base completa de 5 anos, baixada pelo
-Programa1) e persiste no banco de dados SQLite.
-
-- Cria o banco e as tabelas se não existirem (executa schema.sql)
-- Faz backup do banco antes de cada escrita
-- FILTRA tickets da Atlantic Solutions (empresa excluída)
-- Faz UPSERT (insert ou update) dos tickets por ID
-- Registra um snapshot da execução
-- Não gera arquivos intermediários (só escrita no banco)
+Lê 'tickets.xlsx' e persiste no SQLite:
+  - Faz UPSERT (insert ou update) dos tickets
+  - SINCRONIZA: remove tickets que não estão mais no .xlsx
+  - Filtra empresas excluídas (Atlantic)
+  - Anonimiza campos de texto livre (LGPD)
 """
 
 import os
@@ -21,9 +17,10 @@ import sqlite3
 import shutil
 from datetime import datetime
 from pathlib import Path
-from utils_anonimizacao import anonimizar_texto
 
 import pandas as pd
+
+from utils_anonimizacao import anonimizar_texto
 
 
 # ==================== CAMINHOS ====================
@@ -65,7 +62,7 @@ def conectar() -> sqlite3.Connection:
 
 
 def executar_schema(conn):
-    """Executa o schema.sql para garantir que as tabelas existam."""
+    """Executa o schema.sql."""
     if not CAMINHO_SCHEMA.exists():
         log(f'❌ Schema não encontrado: {CAMINHO_SCHEMA}')
         raise FileNotFoundError(f'schema.sql não encontrado em {CAMINHO_SCHEMA}')
@@ -79,7 +76,7 @@ def executar_schema(conn):
 
 # ==================== BACKUP ====================
 def fazer_backup():
-    """Copia o banco atual para dados/backup/ antes de alterá-lo."""
+    """Copia o banco atual para dados/backup/."""
     if not CAMINHO_BANCO.exists():
         return None
 
@@ -104,54 +101,41 @@ def carregar_tickets() -> pd.DataFrame:
     df = pd.read_excel(CAMINHO_TICKETS)
     log(f'   Total: {len(df)} linhas, {len(df.columns)} colunas')
 
-    # Normaliza colunas esperadas
     df.columns = [str(c).strip() for c in df.columns]
-
     return df
 
 
 # ==================== FILTRO DE EMPRESAS ====================
 def filtrar_empresas_excluidas(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Remove tickets de empresas excluídas (Atlantic Solutions).
+    """Remove tickets de empresas excluídas (Atlantic)."""
+    empresas_excluidas_norm = {'atlantic solutions', 'atlantic'}
+    mask = pd.Series([False] * len(df))
 
-    Estratégia:
-        1. Tenta filtrar pela coluna 'empresa' (case-insensitive)
-        2. Se não existir, tenta pela coluna 'Empresa'
-        3. Se não existir, pula o filtro com aviso
-    """
-    # Procura a coluna de empresa (case-insensitive)
-    coluna_empresa = None
+    # Filtra pela coluna 'empresa' (do .xlsx)
     for col in df.columns:
         if col.lower() == 'empresa':
-            coluna_empresa = col
+            valores = df[col].astype(str).str.strip().str.lower()
+            mask |= valores.isin(empresas_excluidas_norm)
             break
 
-    if coluna_empresa is None:
-        log('⚠️  Coluna "empresa" não encontrada — filtro da Atlantic pulado')
-        log(f'   Colunas disponíveis: {df.columns.tolist()}')
-        return df
+    # Filtra pela coluna 'responsavel_empresa' (se existir)
+    if 'responsavel_empresa' in df.columns:
+        valores = df['responsavel_empresa'].astype(str).str.strip().str.lower()
+        mask |= valores.isin(empresas_excluidas_norm)
 
-    # Conta quantos serão removidos
-    mask = df[coluna_empresa].isin(EMPRESAS_EXCLUIDAS)
     n_removidos = int(mask.sum())
-
     if n_removidos > 0:
-        log(f'🚫 Removendo {n_removidos} tickets da Atlantic Solutions...')
-        # Log dos IDs removidos (útil pra auditoria)
-        ids_removidos = df.loc[mask, 'ID'].tolist() if 'ID' in df.columns else []
-        if ids_removidos:
-            log(f'   IDs removidos: {ids_removidos[:10]}{"..." if len(ids_removidos) > 10 else ""}')
+        log(f'🚫 Removendo {n_removidos} tickets de empresas excluídas...')
         df = df[~mask].copy()
     else:
-        log('✅ Nenhum ticket da Atlantic Solutions encontrado')
+        log('✅ Nenhum ticket de empresa excluída')
 
     return df
 
 
 # ==================== TRANSFORMAÇÃO ====================
 def preparar_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """Normaliza tipos e nomes de colunas para o banco."""
+    """Normaliza tipos e nomes de colunas."""
     colunas_esperadas = {
         'ID':                    'id',
         'Título':                'titulo',
@@ -173,10 +157,8 @@ def preparar_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         'Data do 1°resolvido':   'data_1_resolvido',
     }
 
-    # Renomeia
     df = df.rename(columns=colunas_esperadas)
 
-    # Só mantém colunas que existem no banco
     colunas_banco = [
         'id', 'titulo', 'descricao', 'categoria', 'subcategoria',
         'status', 'prioridade', 'responsavel_atual', 'solicitante',
@@ -189,10 +171,10 @@ def preparar_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df[colunas_banco].copy()
 
-    # Normaliza ID para inteiro
+    # ID
     df['id'] = pd.to_numeric(df['id'], errors='coerce').astype('Int64')
 
-    # Datas → ISO string (SQLite prefere string)
+    # Datas
     colunas_data = [
         'criado_data', 'alterado_data', 'previsao',
         'data_resolvido', 'data_1_resolvido',
@@ -201,27 +183,18 @@ def preparar_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         df[col] = pd.to_datetime(df[col], dayfirst=True, errors='coerce')
         df[col] = df[col].dt.strftime('%Y-%m-%d %H:%M:%S')
 
-    # Snapshot = hoje
     df['snapshot_data'] = datetime.now().strftime('%Y-%m-%d')
-
-    # Enriquecido = 0 (Fase 2 vai atualizar)
     df['enriquecido'] = 0
 
-    # Remove linhas sem ID
     df = df.dropna(subset=['id'])
-
     return df
 
 
 # ==================== PERSISTÊNCIA ====================
 def persistir_tickets(conn, df: pd.DataFrame) -> dict:
-    """
-    Faz UPSERT dos tickets no banco.
-    Retorna estatísticas: {novos, atualizados, total}
-    """
+    """Faz UPSERT dos tickets."""
     cursor = conn.cursor()
 
-    # Descobre quais IDs já existem
     cursor.execute('SELECT id FROM tickets')
     ids_existentes = {row[0] for row in cursor.fetchall()}
 
@@ -254,11 +227,8 @@ def persistir_tickets(conn, df: pd.DataFrame) -> dict:
         atualizado_em       = CURRENT_TIMESTAMP
     """
 
-    # ==================== ANONIMIZAÇÃO LGPD ====================
-    # Só anonimiza campos de TEXTO LIVRE (contêm dados de beneficiários).
-    # NÃO anonimiza 'solicitante' nem 'responsavel_atual' (analistas internos).
+    # Anonimização LGPD (só texto livre)
     CAMPOS_ANONIMIZAR = ['titulo', 'descricao', 'solucao', 'diagnostico']
-
     for campo in CAMPOS_ANONIMIZAR:
         if campo in df.columns:
             df[campo] = df[campo].apply(
@@ -300,10 +270,80 @@ def persistir_tickets(conn, df: pd.DataFrame) -> dict:
     }
 
 
-def registrar_snapshot(conn, stats: dict, tempo_execucao: float):
-    """Registra a execução na tabela snapshots."""
-    cursor = conn.cursor()
+# ==================== SINCRONIZAÇÃO (NOVO!) ====================
+def sincronizar_com_xlsx(conn, df: pd.DataFrame) -> int:
+    """
+    Remove tickets que NÃO estão no .xlsx atual (órfãos).
 
+    Um ticket é órfão se:
+      - Está no banco
+      - NÃO está no .xlsx (foi removido do Help360)
+
+    Mantém as movimentações/mensagens dos tickets ativos.
+    Remove as movimentações/mensagens dos tickets órfãos.
+
+    Returns:
+        Número de tickets removidos
+    """
+    # IDs do .xlsx
+    ids_xlsx = set(df['id'].dropna().astype(int).tolist())
+
+    # IDs no banco
+    cursor = conn.cursor()
+    cursor.execute('SELECT id FROM tickets')
+    ids_banco = {row[0] for row in cursor.fetchall()}
+
+    # Órfãos = no banco mas NÃO no .xlsx
+    ids_remover = ids_banco - ids_xlsx
+
+    if not ids_remover:
+        log('✅ Nenhum ticket órfão encontrado')
+        return 0
+
+    log(f'🗑️  Removendo {len(ids_remover)} tickets órfãos...')
+
+    placeholders = ','.join('?' * len(ids_remover))
+    ids_list = list(ids_remover)
+
+    # 1. Remove mensagens
+    cursor.execute(
+        f'DELETE FROM mensagens WHERE ticket_id IN ({placeholders})',
+        ids_list,
+    )
+    n_msgs = cursor.rowcount
+    log(f'   ✅ {n_msgs} mensagens removidas')
+
+    # 2. Remove movimentações
+    cursor.execute(
+        f'DELETE FROM movimentacoes WHERE ticket_id IN ({placeholders})',
+        ids_list,
+    )
+    n_movs = cursor.rowcount
+    log(f'   ✅ {n_movs} movimentações removidas')
+
+    # 3. Remove tickets
+    cursor.execute(
+        f'DELETE FROM tickets WHERE id IN ({placeholders})',
+        ids_list,
+    )
+    n_tickets = cursor.rowcount
+    log(f'   ✅ {n_tickets} tickets removidos')
+
+    conn.commit()
+
+    # Log dos primeiros IDs removidos
+    if len(ids_list) <= 10:
+        log(f'   IDs removidos: {ids_list}')
+    else:
+        log(f'   IDs removidos (primeiros 10): {ids_list[:10]}...')
+
+    return n_tickets
+
+
+# ==================== SNAPSHOT ====================
+def registrar_snapshot(conn, stats: dict, tempo_execucao: float):
+    """Registra execução."""
+    cursor = conn.cursor()
     cursor.execute('SELECT COUNT(*) FROM tickets')
     total = cursor.fetchone()[0]
 
@@ -327,15 +367,14 @@ def main():
     inicio = datetime.now()
 
     print('=' * 60)
-    print('PROGRAMA 4 — PERSISTÊNCIA EM SQLITE')
+    print('PROGRAMA 4 — PERSISTÊNCIA EM SQLITE (v3 — com sync)')
     print('=' * 60)
     print(f'📁 Banco  : {CAMINHO_BANCO}')
-    print(f'📁 Schema : {CAMINHO_SCHEMA}')
     print(f'📂 Origem : {CAMINHO_TICKETS}')
     print()
 
     try:
-        # 1. Backup (se o banco já existir)
+        # 1. Backup
         fazer_backup()
 
         # 2. Conectar + schema
@@ -344,32 +383,43 @@ def main():
         log('📋 Aplicando schema...')
         executar_schema(conn)
 
-        # 3. Ler tickets.xlsx
+        # 3. Ler .xlsx
         df = carregar_tickets()
 
-        # 4. FILTRAR empresas excluídas (Atlantic) ← NOVO
+        # 4. Filtrar empresas excluídas
         log('🚫 Filtrando empresas excluídas...')
         df = filtrar_empresas_excluidas(df)
         log(f'   Total após filtro: {len(df)} linhas')
 
-        # 5. Preparar dados
+        # 5. Preparar
         log('🔄 Preparando dados...')
         df = preparar_dataframe(df)
         log(f'   Linhas válidas: {len(df)}')
 
-        # 6. Persistir
+        # 6. UPSERT
         log('💾 Persistindo no banco...')
         stats = persistir_tickets(conn, df)
         log(f'   ✅ Novos      : {stats["novos"]}')
         log(f'   ✅ Atualizados: {stats["atualizados"]}')
         log(f'   ✅ Total      : {stats["total"]}')
 
-        # 7. Snapshot
+        # 7. SINCRONIZAR (remove órfãos) ← NOVO
+        log('🔄 Sincronizando com o .xlsx...')
+        n_removidos = sincronizar_com_xlsx(conn, df)
+
+        if n_removidos > 0:
+            log(f'   ⚠️  {n_removidos} tickets removidos (não estavam no .xlsx)')
+
+        # 8. Snapshot
         tempo = (datetime.now() - inicio).total_seconds()
         registrar_snapshot(conn, stats, tempo)
         log(f'📸 Snapshot registrado ({tempo:.1f}s)')
 
-        # 8. Fecha
+        # 9. Total final
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM tickets')
+        total_final = cursor.fetchone()[0]
+
         conn.close()
 
         print()
@@ -378,9 +428,10 @@ def main():
         print('=' * 60)
         print(f'📊 Banco    : {CAMINHO_BANCO}')
         print(f'   Tamanho  : {CAMINHO_BANCO.stat().st_size / 1024:.1f} KB')
-        print(f'   Tickets  : {stats["total"]}')
+        print(f'   Tickets  : {total_final}')
         print(f'   Novos    : {stats["novos"]}')
         print(f'   Atualiz. : {stats["atualizados"]}')
+        print(f'   Órfãos   : {n_removidos} (removidos)')
         print()
 
         return True
