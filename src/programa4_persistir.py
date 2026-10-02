@@ -192,7 +192,7 @@ def preparar_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 # ==================== PERSISTÊNCIA ====================
 def persistir_tickets(conn, df: pd.DataFrame) -> dict:
-    """Faz UPSERT dos tickets."""
+    """Faz UPSERT dos tickets, PRESERVANDO campos enriquecidos."""
     cursor = conn.cursor()
 
     cursor.execute('SELECT id FROM tickets')
@@ -211,7 +211,7 @@ def persistir_tickets(conn, df: pd.DataFrame) -> dict:
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
         titulo              = excluded.titulo,
-        descricao           = excluded.descricao,
+        descricao           = COALESCE(excluded.descricao, tickets.descricao),
         categoria           = excluded.categoria,
         subcategoria        = excluded.subcategoria,
         status              = excluded.status,
@@ -227,7 +227,7 @@ def persistir_tickets(conn, df: pd.DataFrame) -> dict:
         atualizado_em       = CURRENT_TIMESTAMP
     """
 
-    # Anonimização LGPD (só texto livre)
+    # Anonimização LGPD
     CAMPOS_ANONIMIZAR = ['titulo', 'descricao', 'solucao', 'diagnostico']
     for campo in CAMPOS_ANONIMIZAR:
         if campo in df.columns:

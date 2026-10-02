@@ -1,56 +1,47 @@
 # ============================================================
-# programa5_enriquecer.py (v4 — COMPLETO)
+# programa5_enriquecer.py (v7 — HISTÓRICO VIA HTML)
 # ============================================================
 """
 Programa 5 — Enriquecimento de Tickets.
 
-Para cada ticket que mudou no período:
-  1. Abre /tickets/{id} e raspa os detalhes
-  2. Baixa /export_ticket_histories/{id}.xlsx (movimentações)
-  3. Extrai as mensagens da seção HTML feed-activity-list
-  4. Persiste em tickets + movimentacoes + mensagens
-  5. Marca ticket como 'enriquecido = 1'
-
-Uso:
-    python src/programa5_enriquecer.py                # últimos 30 dias
-    python src/programa5_enriquecer.py --dias 7       # últimos 7 dias
-    python src/programa5_enriquecer.py --ticket 111005
-    python src/programa5_enriquecer.py --desde 2026-01-01
-    python src/programa5_enriquecer.py --limite 10
+MUDANÇAS v7:
+  - Extrai o HISTÓRICO completo direto do HTML (não do Excel)
+  - Captura Solução, Mensagem e Comentário interno
+  - Captura Alterado por, Status, Prioridade
+  - Persiste movimentações com conteúdo REAL
 """
 
 import argparse
+import re
 import sqlite3
 import sys
 import time
 from datetime import datetime
 from getpass import getpass
-from io import BytesIO
 from pathlib import Path
 
 import pandas as pd
-import requests
 from selenium.webdriver.common.by import By
 
 # ==================== PATHS ====================
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ_PROJETO / 'src'))
+sys.path.insert(0, str(RAIZ_PROJETO / 'scripts'))
 
-from utils_anonimizacao import anonimizar_texto
 from utils_help360 import criar_navegador, realizar_login
+from utils_anonimizacao import anonimizar_texto
 
 
 # ==================== CONFIGURAÇÃO ====================
 PASTA_DADOS = RAIZ_PROJETO / 'dados'
 PASTA_LOGS = PASTA_DADOS / 'logs'
 CAMINHO_BANCO = PASTA_DADOS / 'tickets.db'
-PASTA_HISTORICOS = PASTA_DADOS / 'historicos'
+PASTA_DEBUG = PASTA_DADOS / 'debug_html'
 
 URL_TICKET = 'https://spprev.help360.com.br/tickets/{id}'
-URL_HISTORICO = 'https://spprev.help360.com.br/export_ticket_histories/{id}.xlsx'
 
 DELAY_ENTRE_TICKETS = 2
-USUARIO_PADRAO = None  # lê do config/settings.yaml ou pergunta
+USUARIO_PADRAO = None
 MAX_FALHAS_SEGUIDAS = 5
 
 
@@ -77,7 +68,6 @@ def conectar():
 
 def listar_tickets(conn, limite=None, ticket_id=None, dias=None,
                    desde=None, todos=False):
-    """Lista tickets para enriquecer (só os com enriquecido=0)."""
     if ticket_id:
         cur = conn.execute('SELECT id FROM tickets WHERE id = ?', (int(ticket_id),))
         return [r[0] for r in cur.fetchall()]
@@ -103,22 +93,14 @@ def listar_tickets(conn, limite=None, ticket_id=None, dias=None,
 
 
 def marcar_skip(conn, ticket_id):
-    """Marca ticket como 'tentou e falhou' (enriquecido=3)."""
     conn.execute('UPDATE tickets SET enriquecido = 3 WHERE id = ?', (ticket_id,))
     conn.commit()
 
 
-def salvar_historico_local(ticket_id, df):
-    PASTA_HISTORICOS.mkdir(parents=True, exist_ok=True)
-    df.to_excel(PASTA_HISTORICOS / f'{ticket_id}.xlsx', index=False)
-
-
 # ==================== HELPERS ====================
 def parsear_data_br(texto):
-    """Parseia datas em vários formatos BR."""
     if texto is None:
         return None
-
     if hasattr(texto, 'year'):
         return pd.Timestamp(texto)
 
@@ -126,17 +108,27 @@ def parsear_data_br(texto):
     if not texto or texto.lower() in ('nan', 'nat', 'none', ''):
         return None
 
+    # Tenta pegar "01/10/2026 - 17:08"
     for fmt in (
-        '%d/%m/%Y %H:%M',
         '%d/%m/%Y - %H:%M',
+        '%d/%m/%Y %H:%M',
+        '%d/%m/%Y - %H:%M:%S',
         '%d/%m/%Y %H:%M:%S',
-        '%Y-%m-%d %H:%M:%S',
         '%d/%m/%Y',
     ):
         try:
             return pd.to_datetime(texto, format=fmt)
         except Exception:
             continue
+
+    # Fallback: tenta achar a data no texto
+    match = re.search(r'(\d{2}/\d{2}/\d{4})[\s-]+(\d{2}:\d{2})', texto)
+    if match:
+        try:
+            return pd.to_datetime(f'{match.group(1)} {match.group(2)}',
+                                   format='%d/%m/%Y %H:%M')
+        except Exception:
+            pass
 
     try:
         return pd.to_datetime(texto, dayfirst=True, errors='coerce')
@@ -145,7 +137,6 @@ def parsear_data_br(texto):
 
 
 def parsear_data_hora_br(texto):
-    """Parseia '14/08/2026 às 13:45' ou variações."""
     if not texto:
         return None
     texto = texto.replace(' às ', ' ').replace('às', ' ').strip()
@@ -182,76 +173,175 @@ def extrair_detalhes(navegador):
         'responsavel':   'Responsável',
         'previsao':      'Previsão para solução',
         'categoria':     'Categoria',
-        'empresa':       'Empresa',              
+        'empresa':       'Empresa',
         'prioridade':    'Prioridade',
         'solicitante':   'Solicitante',
         'status':        'Status',
-        'area':          'Área',                 
-        'sistema':       'Sistema',              
-        'solucao':       'Solução',              
-        'classificacao': 'Classificação',        
+        'area':          'Área',
+        'sistema':       'Sistema',
+        'solucao':       'Solução',
+        'classificacao': 'Classificação',
     }
     return {k: extrair_campo(navegador, v) for k, v in mapa.items()}
 
 
-# ==================== PARSER: MOVIMENTAÇÕES (Excel) ====================
-def baixar_historico(navegador, ticket_id):
+# ==================== PARSER: HISTÓRICO (HTML) ====================
+def extrair_historico_html(navegador, ticket_id=None):
+    """
+    Extrai o histórico do ticket direto do HTML.
+    Corrige soluções acumuladas do Help360.
+    """
+    def limpar_conteudo(texto):
+        """Remove conteúdo acumulado (soluções/mensagens anteriores)."""
+        if not texto:
+            return texto
+        # Separador com espaços (Selenium remove \n)
+        for sep in ['-- - -', '--\n-\n-', '\n\n\n']:
+            if sep in texto:
+                texto = texto.split(sep)[0]
+        return texto.strip()
+
+    historico = []
+
     try:
-        cookies = {c['name']: c['value'] for c in navegador.get_cookies()}
-        r = requests.get(URL_HISTORICO.format(id=ticket_id),
-                         cookies=cookies, timeout=30)
-        return r.content if r.status_code == 200 else None
-    except Exception:
-        return None
+        tabela = None
+        tabelas = navegador.find_elements(By.CSS_SELECTOR, 'table.table-striped')
+
+        for t in tabelas:
+            try:
+                thead = t.find_element(By.CSS_SELECTOR, 'thead')
+                if 'prioridade' in thead.text.lower() and 'alterado por' in thead.text.lower():
+                    tabela = t
+                    break
+            except Exception:
+                continue
+
+        if tabela is None:
+            return []
+
+        linhas = tabela.find_elements(By.CSS_SELECTOR, 'tbody tr')
+        mov_atual = None
+        ultima_solucao = None
+        ultima_mensagem = None
+
+        for linha in linhas:
+            try:
+                cells = linha.find_elements(By.CSS_SELECTOR, 'td')
+                if not cells:
+                    continue
+
+                primeira_cell = cells[0].text.strip()
+
+                # ==================== SOLUÇÃO ====================
+                if 'Solução:' in primeira_cell:
+                    if mov_atual and len(cells) >= 2:
+                        texto = cells[1].text.strip()
+                        texto_limpo = limpar_conteudo(texto)
+                        
+                        # ⬇️ SÓ adiciona se o status for "Resolvido" ou "Fechado"
+                        if mov_atual.get('status') in ('Resolvido', 'Fechado'):
+                            if texto_limpo != ultima_solucao:
+                                mov_atual['solucao'] = texto_limpo
+                                ultima_solucao = texto_limpo
+                    continue
+
+                # ==================== MENSAGEM ====================
+                if 'Mensagem:' in primeira_cell:
+                    if mov_atual and len(cells) >= 2:
+                        texto = cells[1].text.strip()
+                        texto_limpo = limpar_conteudo(texto)
+                        
+                        if texto_limpo != ultima_mensagem:
+                            mov_atual['mensagem'] = texto_limpo
+                            ultima_mensagem = texto_limpo
+                    continue
+
+                # ==================== COMENTÁRIO INTERNO ====================
+                if 'Comentário interno:' in primeira_cell:
+                    if mov_atual and len(cells) >= 2:
+                        mov_atual['comentario_interno'] = limpar_conteudo(cells[1].text.strip())
+                    continue
+
+                # ==================== CABEÇALHO ====================
+                if len(cells) >= 5:
+                    if mov_atual is not None:
+                        historico.append(mov_atual)
+
+                    mov_atual = {
+                        'prioridade':       cells[0].text.strip(),
+                        'titulo':           cells[1].text.strip() if len(cells) > 1 else None,
+                        'criado em':        cells[2].text.strip() if len(cells) > 2 else None,
+                        'alterado em':      cells[3].text.strip() if len(cells) > 3 else None,
+                        'status':           cells[4].text.strip() if len(cells) > 4 else None,
+                        'categoria':        cells[5].text.strip() if len(cells) > 5 else None,
+                        'empresa':          cells[6].text.strip() if len(cells) > 6 else None,
+                        'responsavel':      cells[7].text.strip() if len(cells) > 7 else None,
+                        'alterado por':     cells[8].text.strip() if len(cells) > 8 else None,
+                        'solucao':          None,
+                        'mensagem':         None,
+                        'comentario_interno': None,
+                    }
+
+            except Exception:
+                continue
+
+        if mov_atual is not None:
+            historico.append(mov_atual)
+
+        return historico
+
+    except Exception as e:
+        log(f'Erro extraindo histórico HTML: {e}', 'AVISO')
+        return []
 
 
-def parsear_historico(conteudo_bytes, ticket_id):
+def salvar_html_debug(navegador, ticket_id):
+    """Salva o HTML pra debug."""
     try:
-        df = pd.read_excel(BytesIO(conteudo_bytes))
-        df.columns = [str(c).strip() for c in df.columns]
-        salvar_historico_local(ticket_id, df)
-        return df
-    except Exception:
-        return None
+        PASTA_DEBUG.mkdir(parents=True, exist_ok=True)
+        html = navegador.page_source
+        arquivo = PASTA_DEBUG / f'{ticket_id}.html'
+        arquivo.write_text(html, encoding='utf-8')
+    except Exception as e:
+        log(f'Erro salvando HTML debug: {e}', 'AVISO')
 
 
-def persistir_movimentacoes(conn, ticket_id, df_hist):
-    """Persiste movimentações extraídas do Excel, ordenando por data
-    e preenchendo de_status com o status anterior."""
-    if df_hist is None or df_hist.empty:
+def persistir_movimentacoes(conn, ticket_id, historico):
+    """Persiste movimentações extraídas do HTML."""
+    if not historico:
         return 0
 
     conn.execute('DELETE FROM movimentacoes WHERE ticket_id = ?', (ticket_id,))
 
-    # Ordena por data (mais antiga primeiro)
-    df = df_hist.copy()
-    df['_data_ordem'] = df['Alterado Data'].apply(parsear_data_br)
-    df = df.sort_values('_data_ordem', ascending=True).reset_index(drop=True)
-
     inseridos = 0
     status_anterior = None
 
-    # ... (código anterior)
-
-    # Anonimiza antes de inserir
-    for campo in ['autor', 'comentario']:
-        if campo in df.columns:
-            df[campo] = df[campo].apply(
-                lambda x: anonimizar_texto(x) if pd.notna(x) else x
-            )
-
-    for _, row in df.iterrows():
+    for mov in historico:
         try:
-            data_mov = parsear_data_br(row.get('Alterado Data'))
+            # Data
+            data_str = mov.get('alterado em') or mov.get('criado em')
+            data_mov = parsear_data_br(data_str)
 
-            status = row.get('Status')
-            status = str(status).strip() if pd.notna(status) else None
+            # Autor
+            autor = mov.get('alterado por')
 
-            autor = row.get('Alterado por')
-            autor = str(autor).strip() if pd.notna(autor) else None
+            # Status
+            status = mov.get('status')
 
-            responsavel = row.get('Responsável')
-            responsavel = str(responsavel).strip() if pd.notna(responsavel) else None
+            # Comentário: junta solução + mensagem + comentário
+            partes = []
+            if mov.get('solucao'):
+                partes.append(f"Solução: {mov['solucao']}")
+            if mov.get('mensagem'):
+                partes.append(f"Mensagem: {mov['mensagem']}")
+            if mov.get('comentario_interno'):
+                partes.append(f"Comentário: {mov['comentario_interno']}")
+
+            comentario = ' | '.join(partes) if partes else None
+
+            # Anonimiza
+            if comentario:
+                comentario = anonimizar_texto(comentario)
 
             conn.execute('''
                 INSERT INTO movimentacoes
@@ -264,14 +354,15 @@ def persistir_movimentacoes(conn, ticket_id, df_hist):
                 'historico',
                 status_anterior,
                 status,
-                f'Responsável: {responsavel}' if responsavel else None,
+                comentario,
             ))
             inseridos += 1
 
             if status:
                 status_anterior = status
+
         except Exception as e:
-            log(f'Erro persistindo mov. do #{ticket_id}: {e}', 'AVISO')
+            log(f'Erro persistindo mov do #{ticket_id}: {e}', 'AVISO')
 
     conn.commit()
     return inseridos
@@ -279,18 +370,6 @@ def persistir_movimentacoes(conn, ticket_id, df_hist):
 
 # ==================== PARSER: MENSAGENS (HTML) ====================
 def extrair_mensagens(navegador):
-    """
-    Extrai mensagens da seção HTML:
-        <div class="feed-activity-list">
-            <div class="feed-element">
-                <div class="media-body">
-                    <strong>AUTOR</strong> escreveu em
-                    <small>DD/MM/AAAA às HH:MM</small>
-                    <div class="well">CONTEÚDO</div>
-                </div>
-            </div>
-        </div>
-    """
     mensagens = []
     try:
         elementos = navegador.find_elements(
@@ -340,11 +419,6 @@ def persistir_mensagens(conn, ticket_id, mensagens):
     conn.execute('DELETE FROM mensagens WHERE ticket_id = ?', (ticket_id,))
 
     inseridos = 0
-
-    for m in mensagens:
-        m['autor'] = anonimizar_texto(m.get('autor'))
-        m['conteudo'] = anonimizar_texto(m.get('conteudo'))
-
     for m in mensagens:
         try:
             data_str = (m['data_hora'].strftime('%Y-%m-%d %H:%M:%S')
@@ -352,6 +426,8 @@ def persistir_mensagens(conn, ticket_id, mensagens):
             conteudo = m['conteudo']
             if m.get('anexo'):
                 conteudo = f'[Anexo: {m["anexo"]}] {conteudo}'
+
+            conteudo = anonimizar_texto(conteudo)
 
             conn.execute('''
                 INSERT INTO mensagens
@@ -368,13 +444,11 @@ def persistir_mensagens(conn, ticket_id, mensagens):
 
 # ==================== ATUALIZAÇÃO DE TICKET ====================
 def atualizar_ticket(conn, ticket_id, detalhes):
-    """Atualiza os campos do ticket, incluindo os novos (classificacao, area, etc)."""
     prev = parsear_data_br(detalhes.get('previsao'))
     prev_str = prev.strftime('%Y-%m-%d %H:%M:%S') if prev is not None else None
 
-    # Anonimiza os campos antes do UPDATE
     for campo in ['titulo', 'descricao', 'solucao', 'diagnostico']:
-        if campo in detalhes and detalhes[campo]:
+        if detalhes.get(campo):
             detalhes[campo] = anonimizar_texto(detalhes[campo])
 
     conn.execute('''
@@ -392,7 +466,6 @@ def atualizar_ticket(conn, ticket_id, detalhes):
             empresa           = COALESCE(?, empresa),
             solucao           = COALESCE(?, solucao),
             sistema           = COALESCE(?, sistema),
-            backlog           = COALESCE(?, backlog),         -- ← NOVO
             enriquecido       = 1,
             atualizado_em     = CURRENT_TIMESTAMP
         WHERE id = ?
@@ -410,40 +483,56 @@ def atualizar_ticket(conn, ticket_id, detalhes):
         detalhes.get('empresa'),
         detalhes.get('solucao'),
         detalhes.get('sistema'),
-        detalhes.get('backlog', 0),                                # ← NOVO
         ticket_id,
     ))
     conn.commit()
 
 
+# ==================== DETECTA BACKLOG ====================
+def detectar_backlog(navegador):
+    try:
+        page_text = navegador.find_element(By.TAG_NAME, 'body').text
+        keywords = [
+            'se tornou um backlog',
+            'se tornou backlog',
+            'em backlog',
+            'aguardando backlog',
+            'ticket backlog',
+        ]
+        page_lower = page_text.lower()
+        for kw in keywords:
+            if kw in page_lower:
+                return True
+        return False
+    except Exception:
+        return False
+
+
 # ==================== PROCESSAMENTO ====================
 def processar_ticket(navegador, conn, ticket_id):
-    """Retorna (sucesso, num_movs, num_msgs, motivo)."""
     try:
         navegador.get(URL_TICKET.format(id=ticket_id))
-        time.sleep(2)
+        time.sleep(3)
 
         if 'sign_in' in (navegador.current_url or '').lower():
             return (False, 0, 0, 'caiu em login')
+
+        # Salva HTML pra debug (primeiros 5 tickets)
+        if ticket_id in (110506, 110522, 110557, 110688, 111186):
+            salvar_html_debug(navegador, ticket_id)
 
         detalhes = extrair_detalhes(navegador)
         if not detalhes.get('titulo'):
             return (False, 0, 0, 'sem título')
 
-        # ---------- NOVO: detecta backlog ----------
         eh_backlog = detectar_backlog(navegador)
-
-        # Adiciona ao dicionário de detalhes
         detalhes['backlog'] = 1 if eh_backlog else 0
 
         atualizar_ticket(conn, ticket_id, detalhes)
 
-        # Movimentações (Excel)
-        movs = 0
-        conteudo = baixar_historico(navegador, ticket_id)
-        if conteudo:
-            df_hist = parsear_historico(conteudo, ticket_id)
-            movs = persistir_movimentacoes(conn, ticket_id, df_hist)
+        # ⬇️ HISTÓRICO VIA HTML
+        historico = extrair_historico_html(navegador, ticket_id)
+        movs = persistir_movimentacoes(conn, ticket_id, historico)
 
         # Mensagens (HTML)
         msgs = 0
@@ -458,36 +547,6 @@ def processar_ticket(navegador, conn, ticket_id):
         traceback.print_exc()
         return (False, 0, 0, f'exceção: {type(e).__name__}: {e}')
 
-# ==================== detecta backlogs ====================
-def detectar_backlog(navegador):
-    """
-    Detecta se o ticket possui a mensagem 'Este ticket se tornou um Backlog'
-    ou variações.
-
-    Retorna:
-        True se for backlog, False caso contrário
-    """
-    try:
-        # Busca em todo o HTML/texto visível
-        page_text = navegador.find_element(By.TAG_NAME, 'body').text
-
-        # Palavras-chave que indicam backlog
-        keywords = [
-            'se tornou um backlog',
-            'se tornou backlog',
-            'em backlog',
-            'aguardando backlog',
-            'ticket backlog',
-        ]
-
-        page_lower = page_text.lower()
-        for kw in keywords:
-            if kw in page_lower:
-                return True
-
-        return False
-    except Exception:
-        return False
 
 # ==================== MAIN ====================
 def main():
@@ -503,7 +562,7 @@ def main():
     inicio = datetime.now()
 
     print('=' * 60)
-    print('PROGRAMA 5 — ENRIQUECIMENTO DE TICKETS')
+    print('PROGRAMA 5 — ENRIQUECIMENTO (v7 — HTML)')
     print('=' * 60)
     print(f'📁 Banco: {CAMINHO_BANCO}')
 
@@ -540,7 +599,7 @@ def main():
     print()
     log(f'{len(ids)} ticket(s) a processar')
 
-    # Navegador + login
+    # Login
     log('Abrindo navegador...')
     navegador = criar_navegador()
     senha = getpass('Digite sua senha: ')
@@ -555,7 +614,6 @@ def main():
 
     log(f'✅ Login OK: {navegador.current_url}')
 
-    # Contadores
     stats = {'ok': 0, 'skip': 0, 'erro': 0, 'movs': 0, 'msgs': 0}
     falhas_seguidas = 0
 
