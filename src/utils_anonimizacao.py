@@ -11,6 +11,8 @@ MUDANÇA v3: SUBSTITUIÇÃO INTELIGENTE
   - Telefone → 0000000000
   - Nomes → M.C.A.S. (iniciais)
   - PROTOCOLOS SÃO PRESERVADOS (importantes para busca)
+
+MUDANÇA v4: Adicionado CAMPOS_POR_TABELA para migração SQLite→PostgreSQL
 """
 import re
 
@@ -223,3 +225,62 @@ def anonimizar_dataframe(df, campos: list, anonimizar_nomes: bool = True):
                 lambda x: anonimizar_texto(x, anonimizar_nomes)
             )
     return df
+
+
+# ==================== CONFIGURAÇÃO DE MIGRAÇÃO ====================
+# Mapeia cada tabela do banco para os campos que devem ser anonimizados.
+# Usado por scripts/migrar_sqlite_para_postgres.py
+#
+# Baseado no schema real do banco (inspecionado em 2026-10-05):
+#   tickets (10235), movimentacoes (20212), mensagens (13735), analistas (363)
+
+CAMPOS_POR_TABELA = {
+    # ==================== TICKETS ====================
+    # Campos que podem conter nomes, CPFs, telefones de terceiros
+    'tickets': [
+        'titulo',
+        'descricao',
+        'solicitante',          # nome do solicitante (terceiro)
+        'responsavel_atual',    # nome do responsável (analista)
+        'responsavel_empresa',  # nome do responsável da empresa
+        'solucao',              # texto de solução pode conter dados
+        'diagnostico',          # texto de diagnóstico pode conter dados
+        'acao_interna',         # anotações internas
+        'pendente_usuario',     # texto sobre pendência com usuário
+    ],
+
+    # ==================== MOVIMENTACOES ====================
+    # Histórico de mudanças de status
+    'movimentacoes': [
+        'autor',        # nome de quem fez a movimentação
+        'comentario',   # comentário pode conter dados pessoais
+    ],
+
+    # ==================== MENSAGENS ====================
+    # Mensagens trocadas dentro dos tickets
+    'mensagens': [
+        'autor',             # nome do autor da mensagem
+        'analista_destino',  # nome do analista destinatário
+        'conteudo',          # conteúdo da mensagem (pode conter CPF, telefone, etc)
+    ],
+
+    # ==================== ANALISTAS ====================
+    # Dados dos analistas internos
+    'analistas': [
+        'nome',
+        'email',
+        'responsavel_area',  # nome do responsável pela área
+    ],
+
+    # ==================== AREAS ====================
+    # Tabela vazia, mas mantida por segurança
+    'areas': [
+        'responsavel_area',
+    ],
+
+    # ==================== SNAPSHOTS ====================
+    # Metadados de execução — não contém dados pessoais, mas mantido
+    'snapshots': [
+        'observacao',
+    ],
+}
