@@ -19,30 +19,38 @@ from sqlalchemy import create_engine
 def _obter_database_url():
     """
     Tenta obter a URL do banco em ordem de prioridade:
-        1. Variável de ambiente (Railway, prioridade)
-        2. Streamlit Secrets (Streamlit Cloud)
-        3. SQLite local (fallback para desenvolvimento)
+        1. Streamlit Secrets (formato [connections.postgresql] url = ...)
+        2. Streamlit Secrets (chave direta DATABASE_URL)
+        3. Variável de ambiente (Railway)
+        4. SQLite local (fallback para desenvolvimento)
     """
-    # 1. Variável de ambiente (Railway)
-    url = os.environ.get('DATABASE_URL')
-    if url:
-        return url
-
-    # 2. Streamlit Secrets (Streamlit Cloud)
+    # 1. Streamlit Secrets — formato [connections.postgresql]
     try:
-        url = st.secrets.get('DATABASE_URL')
+        url = st.secrets["connections"]["postgresql"]["url"]
+        if url:
+            return url
+    except (KeyError, FileNotFoundError, Exception):
+        pass
+
+    # 2. Streamlit Secrets — chave direta DATABASE_URL
+    try:
+        url = st.secrets.get("DATABASE_URL")
         if url:
             return url
     except Exception:
         pass
 
-    # 3. Fallback: SQLite local (só pra DEV)
+    # 3. Variável de ambiente (Railway)
+    url = os.environ.get('DATABASE_URL')
+    if url:
+        return url
+
+    # 4. Fallback: SQLite local (só pra DEV)
     sqlite_path = Path(__file__).resolve().parent.parent / 'dados' / 'tickets.db'
     if sqlite_path.exists():
         st.info(f'ℹ️ Usando SQLite local: {sqlite_path.name}')
         return f'sqlite:///{sqlite_path}'
 
-    # Nada encontrado
     return None
 
 
