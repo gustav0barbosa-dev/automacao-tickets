@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     data_1_resolvido    DATETIME,
     snapshot_data       DATE,
     enriquecido         INTEGER DEFAULT 0,
+    enriquecido_em      DATETIME,
     criado_em           DATETIME DEFAULT CURRENT_TIMESTAMP,
     atualizado_em       DATETIME DEFAULT CURRENT_TIMESTAMP
 );

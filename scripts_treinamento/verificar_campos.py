@@ -1,7 +1,4 @@
 # scripts_treinamento/verificar_campos.py
-"""
-Verifica o conteúdo dos campos de texto no banco.
-"""
 import sqlite3
 from pathlib import Path
 
@@ -11,28 +8,8 @@ BANCO = RAIZ / 'dados' / 'tickets.db'
 conn = sqlite3.connect(BANCO)
 conn.row_factory = sqlite3.Row
 
-# ==================== TICKET 110506 ====================
-ticket_id = 110506
-
-r = conn.execute('''
-    SELECT id, titulo, descricao, solucao, diagnostico, status, categoria
-    FROM tickets WHERE id = ?
-''', (ticket_id,)).fetchone()
-
 print('=' * 80)
-print(f'TICKET {ticket_id}')
-print('=' * 80)
-print(f'\nTítulo: {r["titulo"]}')
-print(f'\nDescrição: {(r["descricao"] or "(vazio)")[:500]}')
-print(f'\nSolução: {(r["solucao"] or "(vazio)")[:500]}')
-print(f'\nDiagnóstico: {(r["diagnostico"] or "(vazio)")[:500]}')
-print(f'\nStatus: {r["status"]}')
-print(f'Categoria: {r["categoria"]}')
-
-# ==================== ESTATÍSTICAS ====================
-print()
-print('=' * 80)
-print('ESTATÍSTICAS (todos os tickets)')
+print('ESTATÍSTICAS APÓS ENRIQUECIMENTO')
 print('=' * 80)
 
 total = conn.execute('SELECT COUNT(*) FROM tickets').fetchone()[0]
@@ -44,52 +21,46 @@ com_solucao = conn.execute('''
     SELECT COUNT(*) FROM tickets
     WHERE solucao IS NOT NULL AND LENGTH(solucao) > 10
 ''').fetchone()[0]
-com_diagnostico = conn.execute('''
-    SELECT COUNT(*) FROM tickets
-    WHERE diagnostico IS NOT NULL AND LENGTH(diagnostico) > 10
+enriquecidos = conn.execute('''
+    SELECT COUNT(*) FROM tickets WHERE enriquecido = 1
 ''').fetchone()[0]
 
-print(f'\nTotal de tickets: {total}')
-print(f'Com descrição:   {com_descricao} ({com_descricao/total*100:.1f}%)')
-print(f'Com solução:     {com_solucao} ({com_solucao/total*100:.1f}%)')
-print(f'Com diagnóstico: {com_diagnostico} ({com_diagnostico/total*100:.1f}%)')
+# Movimentações e mensagens
+total_movs = conn.execute('SELECT COUNT(*) FROM movimentacoes').fetchone()[0]
+total_msgs = conn.execute('SELECT COUNT(*) FROM mensagens').fetchone()[0]
 
-# ==================== MOVIMENTAÇÕES ====================
-print()
-print('=' * 80)
-print('MOVIMENTAÇÕES (ticket 110506)')
-print('=' * 80)
+# Movimentações com comentário real (>50 chars)
+movs_com_conteudo = conn.execute('''
+    SELECT COUNT(*) FROM movimentacoes
+    WHERE comentario IS NOT NULL AND LENGTH(comentario) > 50
+''').fetchone()[0]
 
-movs = conn.execute('''
-    SELECT data_movimentacao, autor, para_status, comentario
-    FROM movimentacoes
-    WHERE ticket_id = ?
-    ORDER BY data_movimentacao
-''', (ticket_id,)).fetchall()
+print(f'\n📊 TICKETS')
+print(f'   Total: {total}')
+print(f'   Enriquecidos: {enriquecidos} ({enriquecidos/total*100:.1f}%)')
+print(f'   Com descrição: {com_descricao} ({com_descricao/total*100:.1f}%)')
+print(f'   Com solução: {com_solucao} ({com_solucao/total*100:.1f}%)')
 
-print(f'\nTotal: {len(movs)}')
-for m in movs:
-    print(f'\n📅 {m["data_movimentacao"]} | {m["para_status"]}')
-    print(f'   Autor: {m["autor"]}')
-    print(f'   Comentário: {(m["comentario"] or "(vazio)")[:200]}')
+print(f'\n📊 MOVIMENTAÇÕES')
+print(f'   Total: {total_movs}')
+print(f'   Com conteúdo >50 chars: {movs_com_conteudo} ({movs_com_conteudo/total_movs*100:.1f}%)')
 
-# ==================== MENSAGENS ====================
-print()
-print('=' * 80)
-print('MENSAGENS (ticket 110506)')
-print('=' * 80)
+print(f'\n📊 MENSAGENS')
+print(f'   Total: {total_msgs}')
 
-msgs = conn.execute('''
-    SELECT data_hora, autor, conteudo
-    FROM mensagens
-    WHERE ticket_id = ?
-    ORDER BY data_hora
-''', (ticket_id,)).fetchall()
-
-print(f'\nTotal: {len(msgs)}')
-for m in msgs[:5]:
-    print(f'\n📅 {m["data_hora"]} | {m["autor"]}')
-    print(f'   Conteúdo: {(m["conteudo"] or "(vazio)")[:200]}')
+# Top 10 tickets com mais conteúdo
+print(f'\n📊 TOP 10 TICKETS COM MAIS CONTEÚDO')
+for r in conn.execute('''
+    SELECT t.id, t.titulo,
+           (SELECT COUNT(*) FROM movimentacoes WHERE ticket_id = t.id) as movs,
+           (SELECT COUNT(*) FROM mensagens WHERE ticket_id = t.id) as msgs
+    FROM tickets t
+    WHERE t.enriquecido = 1
+    ORDER BY (movs + msgs) DESC
+    LIMIT 10
+'''):
+    print(f'   #{r["id"]} — {r["titulo"][:60]}')
+    print(f'      {r["movs"]} movs | {r["msgs"]} msgs')
 
 conn.close()
 print()

@@ -1,0 +1,1269 @@
+versao: '2.0'
+criado_em: '2026-11-05'
+atualizado_em: '2026-11-05'
+fonte: Auditoria de clusters (Etapa 1) + taxonomia anterior
+categorias:
+  Retorno de Tarefa:
+    motivos:
+      correcao_genérica:
+        nome: Correção (genérico)
+        descricao: Correção sem especificação de fluxo/tarefa.
+        palavras_chave:
+        - correção
+        - correcao
+        - ajuste
+        - retificar
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 20
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      erro_genérico:
+        nome: Erro (genérico)
+        descricao: Erro sem especificação de causa.
+        palavras_chave:
+        - erro
+        - falha
+        - não funcionou
+        - nao funcionou
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 20
+        uso_tickets: 1
+        origem: taxonomia_anterior
+        status: mantido
+      status_finalizado_em_tramite:
+        nome: Status finalizado → em trâmite (disponibilizar tarefa)
+        descricao: Tarefa finalizada mas precisa voltar ao trâmite.
+        palavras_chave:
+        - finalizado
+        - disponibilizar tarefa
+        - em trâmite
+        - em tramite
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 15
+        uso_tickets: 1
+        origem: taxonomia_anterior
+        status: mantido
+      corrigir_tarefas_fluxo:
+        nome: Corrigir tarefas do fluxo (foi para outra sem passar pela correta)
+        descricao: Tarefa encaminhada para fluxo errado, precisa retornar ao correto.
+        palavras_chave:
+        - outra tarefa
+        - fluxo errado
+        - passar pela correta
+        - tarefa correta
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      retorno_para_determinado_fluxo:
+        nome: Retorno para determinado fluxo
+        descricao: '⚠️ AMBIGUO: genérico (17 tickets no DOCX). Esconde subgrupos —
+          rodar descoberta não supervisionada.'
+        palavras_chave:
+        - retorno
+        - retornar
+        - fluxo
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 30
+        uso_tickets: 1
+        origem: taxonomia_anterior
+        status: mantido
+      reativacao_fluxo:
+        nome: Reativação do fluxo
+        descricao: Reativar fluxo interrompido.
+        palavras_chave:
+        - reativar
+        - reativação
+        - reativacao
+        - reabrir fluxo
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 15
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      incorporar_juros_judicial:
+        nome: Incorporar juros e correção (decisão judicial)
+        descricao: Incorporar juros e correção monetária por decisão judicial.
+        palavras_chave:
+        - juros
+        - correção
+        - correcao
+        - judicial
+        - decisão judicial
+        - decisao judicial
+        requer_autorizacao: true
+        ativo: true
+        precedencia: 10
+        uso_tickets: 2
+        origem: taxonomia_anterior
+        status: mantido
+      incorporar_juros:
+        nome: Incorporar juros e correção
+        descricao: '⚠️ AMBIGUO: aparece duplicado com ''(decisão judicial)'' no DOCX.'
+        palavras_chave:
+        - juros
+        - correção
+        - correcao
+        - incorporar
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 20
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      portaria_em_branco:
+        nome: Portaria em branco
+        descricao: Portaria sem preenchimento.
+        palavras_chave:
+        - portaria
+        - em branco
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 15
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      recalculo:
+        nome: Recálculo
+        descricao: Recálculo de valores.
+        palavras_chave:
+        - recalculo
+        - re-calculo
+        - recalcular
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 15
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      tarefa_para_de:
+        nome: tarefa + para + de
+        descricao: Motivo descoberto via clustering emergente (cluster 108, 47 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 47
+        origem: cluster_108
+        status: novo_aprovado
+  Reenvio Bancário:
+    motivos:
+      cancelamento_conta_banco:
+        nome: Cancelamento de conta bancária (pelo Banco)
+        descricao: Banco cancelou a conta, cancelando o reenvio.
+        palavras_chave:
+        - cancelamento.*reenvio
+        - reenvio.*cancelamento
+        - cancelar.*conta
+        - conta.*cancelada
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 5
+        uso_tickets: 33
+        origem: taxonomia_anterior
+        status: mantido
+      alteracao_conta_bancaria:
+        nome: Alteração da conta bancária
+        descricao: Alterar conta bancária do favorecido.
+        palavras_chave:
+        - alteração.*conta
+        - alteracao.*conta
+        - mudar.*conta
+        - trocar.*conta
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 5
+        uso_tickets: 17
+        origem: taxonomia_anterior
+        status: mantido
+      conta_corrente_dv_invalido:
+        nome: Conta corrente/DV do favorecido inválido
+        descricao: Conta corrente ou dígito verificador inválido.
+        palavras_chave:
+        - dv
+        - conta corrente
+        - dígito verificador
+        - digito verificador
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 17
+        origem: taxonomia_anterior
+        status: mantido
+      conta_cadastrada_errada:
+        nome: Conta bancária cadastrada erroneamente
+        descricao: Conta cadastrada com erro.
+        palavras_chave:
+        - cadastrada
+        - erroneamente
+        - errada
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 5
+        origem: taxonomia_anterior
+        status: mantido
+      tipo_numero_inscricao_invalido:
+        nome: AT – Tipo/Número de inscrição do favorecido inválido
+        descricao: Tipo ou número de inscrição (CPF/CNPJ) inválido.
+        palavras_chave:
+        - inscrição
+        - inscricao
+        - cpf
+        - cnpj
+        - tipo.*inscri
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 208
+        origem: taxonomia_anterior
+        status: mantido
+      reenvio_simples:
+        nome: Reenvio (simples)
+        descricao: Reenvio bancário sem complicações.
+        palavras_chave:
+        - reenvio
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 442
+        origem: taxonomia_anterior
+        status: mantido
+      recadastramento:
+        nome: Recadastramento
+        descricao: Recadastramento de dados bancários.
+        palavras_chave:
+        - recadastramento
+        - recadastro
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 15
+        uso_tickets: 1
+        origem: taxonomia_anterior
+        status: mantido
+      correcao_conta_pensao_oficio:
+        nome: Correção de conta bancária (pensão – ofício judicial errôneo)
+        descricao: Conta bancária de pensão com ofício judicial errado.
+        palavras_chave:
+        - pensão
+        - pensao
+        - ofício
+        - oficio
+        - judicial
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 43
+        origem: taxonomia_anterior
+        status: mantido
+      bloqueio_valor_morte_alimentante:
+        nome: Bloqueio de valor (morte do alimentante – cancelamento de reenvio)
+        descricao: Bloqueio por morte do alimentante.
+        palavras_chave:
+        - bloqueio
+        - morte
+        - alimentante
+        - óBito
+        - obito
+        - falecimento
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 1
+        origem: taxonomia_anterior
+        status: mantido
+      bloqueio_valor_restituicao_pensao:
+        nome: Bloqueio de valor (restituição de pensão alimentícia via judicial)
+        descricao: Bloqueio por restituição de pensão alimentícia via judicial.
+        palavras_chave:
+        - restituição
+        - restituicao
+        - pensão alimentícia
+        - pensao alimenticia
+        - judicial
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      codigo_banco_errado:
+        nome: Código do banco errado
+        descricao: Código do banco informado incorretamente.
+        palavras_chave:
+        - código do banco
+        - codigo do banco
+        - banco errado
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      h6_outros_motivos_glosa:
+        nome: H6 – outros motivos de glosa (geralmente problema do banco)
+        descricao: Glosa H6, geralmente problema do banco.
+        palavras_chave:
+        - H6
+        - glosa
+        - problema do banco
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      saldo_valor:
+        nome: Saldo de valor
+        descricao: Reenvio relacionado a saldo/valor.
+        palavras_chave:
+        - saldo
+        - valor
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 20
+        uso_tickets: 21
+        origem: taxonomia_anterior
+        status: mantido
+  Cadastro:
+    motivos:
+      alteracao_cargo:
+        nome: Alteração de cargo
+        descricao: Alterar cargo do servidor.
+        palavras_chave:
+        - alteração de cargo
+        - alteracao de cargo
+        - mudança de cargo
+        - mudanca de cargo
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 1
+        origem: taxonomia_anterior
+        status: mantido
+      cargo_pensao:
+        nome: Alteração/cadastro/exclusão de cargo ligada a concessão de pensão
+        descricao: Cargo vinculado a pensão.
+        palavras_chave:
+        - cargo
+        - pensão
+        - pensao
+        - concessão
+        - concessao
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 42
+        origem: taxonomia_anterior
+        status: mantido
+      data_ingresso_sou_sp:
+        nome: Data de ingresso no serviço público no app sou.sp
+        descricao: Data de ingresso incorreta no sou.sp.
+        palavras_chave:
+        - sou.sp
+        - ingresso
+        - serviço público
+        - servico publico
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 2
+        origem: taxonomia_anterior
+        status: mantido
+      nomenclatura_cargo_sou_sp:
+        nome: Nomenclatura de cargo incorreta no sou.sp
+        descricao: Nome do cargo errado no sou.sp.
+        palavras_chave:
+        - cargo
+        - sou.sp
+        - nomenclatura
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 2
+        origem: taxonomia_anterior
+        status: mantido
+      nome_abreviado_sou_sp:
+        nome: Nome abreviado no sou.sp
+        descricao: Nome abreviado incorretamente no sou.sp.
+        palavras_chave:
+        - nome abreviado
+        - sou.sp
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      acesso_oracle_datapump:
+        nome: Liberação de acesso Oracle 'Datapump Thema'
+        descricao: Acesso Oracle Datapump Thema.
+        palavras_chave:
+        - oracle
+        - datapump
+        - thema
+        - acesso
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 15
+        origem: taxonomia_anterior
+        status: mantido
+      cadastro_cep:
+        nome: Cadastro de CEP
+        descricao: Cadastro/atualização de CEP.
+        palavras_chave:
+        - cep
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 37
+        origem: taxonomia_anterior
+        status: mantido
+      cadastro_agencia:
+        nome: Cadastro de agência
+        descricao: Cadastro de agência bancária.
+        palavras_chave:
+        - agência
+        - agencia
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 12
+        origem: taxonomia_anterior
+        status: mantido
+      alteracao_data_obito:
+        nome: Alteração de data de óbito
+        descricao: Corrigir data de óbito.
+        palavras_chave:
+        - óbito
+        - obito
+        - data de óbito
+        - data de obito
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 48
+        origem: taxonomia_anterior
+        status: mantido
+      correcao_data_nascimento:
+        nome: Correção de data de nascimento
+        descricao: Corrigir data de nascimento.
+        palavras_chave:
+        - nascimento
+        - data de nascimento
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 10
+        origem: taxonomia_anterior
+        status: mantido
+      exclusao_dependentes_ir:
+        nome: Exclusão de dependentes para IR
+        descricao: Excluir dependentes do Imposto de Renda.
+        palavras_chave:
+        - dependentes
+        - IR
+        - imposto de renda
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 27
+        origem: taxonomia_anterior
+        status: mantido
+      cancelamento_acesso:
+        nome: Cancelamento de acesso
+        descricao: Cancelar acesso do usuário.
+        palavras_chave:
+        - cancelamento de acesso
+        - cancelar acesso
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      conta_extra_2_beneficios:
+        nome: Inclusão de conta extra para 2 benefícios
+        descricao: Adicionar conta extra para dois benefícios.
+        palavras_chave:
+        - conta extra
+        - 2 benefícios
+        - dois benefícios
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      ampliacao_conta_pensao_alimenticia:
+        nome: Ampliação do campo de conta para pensão alimentícia judicial
+        descricao: Ampliar campo de conta para pensão alimentícia judicial.
+        palavras_chave:
+        - ampliação
+        - ampliacao
+        - pensão alimentícia
+        - pensao alimenticia
+        - judicial
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      retirada_dados_acumulado_duplicidade:
+        nome: Retirada de dados de acúmulo por duplicidade
+        descricao: Remover acúmulo duplicado.
+        palavras_chave:
+        - acúmulo
+        - acumulo
+        - duplicidade
+        - duplicado
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 13
+        origem: taxonomia_anterior
+        status: mantido
+      divergencia_cpf_minha_spprev:
+        nome: Divergência cadastral/conflito de CPF na Minha SPPREV
+        descricao: CPF conflitante na Minha SPPREV.
+        palavras_chave:
+        - cpf
+        - minha spprev
+        - divergência
+        - divergencia
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 25
+        origem: taxonomia_anterior
+        status: mantido
+      email_divergente_govbr:
+        nome: E-mail divergente Minha SPPREV × Gov.br
+        descricao: E-mail diferente entre Minha SPPREV e Gov.br.
+        palavras_chave:
+        - e-mail
+        - email
+        - gov.br
+        - divergente
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 3
+        origem: taxonomia_anterior
+        status: mantido
+      correcao_saldo_extincao:
+        nome: Erro no cálculo de correção de saldo de inatividade – fluxo de extinção
+        descricao: '⚠️ AMBIGUO: parece pertencer a Extinção, não Cadastro.'
+        palavras_chave:
+        - saldo de inatividade
+        - extinção
+        - extincao
+        - correção
+        - correcao
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 12
+        uso_tickets: 43
+        origem: taxonomia_anterior
+        status: mantido
+      saldo_extincao_divergente:
+        nome: Saldo de extinção divergente
+        descricao: '⚠️ AMBIGUO: parece pertencer a Extinção, não Cadastro.'
+        palavras_chave:
+        - saldo de extinção
+        - saldo de extincao
+        - divergente
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 12
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      sistema_nao_carrega_beneficios:
+        nome: Sistema não carrega novos benefícios – Carga de Benefícios Valor Estimado
+        descricao: Sistema não carrega benefícios novos.
+        palavras_chave:
+        - não carrega
+        - nao carrega
+        - benefícios
+        - beneficios
+        - carga de benefícios
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+  Aposentadoria:
+    motivos:
+      erro_sistema_inconsistencia_tela:
+        nome: Erro no sistema / Inconsistência na tela
+        descricao: Erro genérico no sistema ou inconsistência de exibição.
+        palavras_chave:
+        - erro no sistema
+        - erro no sigeprev
+        - inconsistência na tela
+        - inconsistencia na tela
+        - urgente
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 35
+        origem: taxonomia_anterior
+        status: mantido
+      artigo_201_fundamentacao:
+        nome: Artigo 201 / fundamentação de regra
+        descricao: Questão relacionada ao artigo 201 ou fundamentação de regra.
+        palavras_chave:
+        - artigo 201
+        - fundamentação
+        - fundamentacao
+        - complemento de regra
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 2
+        origem: taxonomia_anterior
+        status: mantido
+      tarefa_nao_disponivel:
+        nome: Tarefa não disponível
+        descricao: Tarefa não está disponível para o solicitante.
+        palavras_chave:
+        - tarefa não disponível
+        - tarefa nao disponivel
+        - esclarecimento
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 3
+        origem: taxonomia_anterior
+        status: mantido
+      pag_proventos:
+        nome: Página de proventos
+        descricao: Problema na página de proventos.
+        palavras_chave:
+        - pag. de proventos
+        - pagina de proventos
+        - proventos
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      de_procedimento_definicao:
+        nome: de + procedimento + definição
+        descricao: Motivo descoberto via clustering emergente (cluster 29, 54 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 54
+        origem: cluster_29
+        status: novo_aprovado
+  Segurança:
+    motivos:
+      solicitacao_acesso:
+        nome: Solicitação de acesso ao sistema
+        descricao: Solicitar acesso a um sistema.
+        palavras_chave:
+        - solicita.*acesso
+        - acesso ao sistema
+        - liberação de acesso
+        - liberacao de acesso
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 214
+        origem: taxonomia_anterior
+        status: mantido
+      emissao_senha:
+        nome: Emissão de senha
+        descricao: Solicitar emissão ou redefinição de senha.
+        palavras_chave:
+        - emissão de senha
+        - emissao de senha
+        - senha
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 152
+        origem: taxonomia_anterior
+        status: mantido
+      sigeprev_suporte_sigeprev_suporte:
+        nome: sigeprev + suporte sigeprev + suporte
+        descricao: Motivo descoberto via clustering emergente (cluster 97, 42 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 42
+        origem: cluster_97
+        status: novo_aprovado
+      sigeprev_sigeprev_inclusao_usuario_sigeprev:
+        nome: sigeprev + sigeprev inclusão + usuário sigeprev
+        descricao: Motivo descoberto via clustering emergente (cluster 95, 43 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 43
+        origem: cluster_95
+        status: novo_aprovado
+  Acessos SIGEPREV:
+    motivos:
+      solicitacao_acesso:
+        nome: Solicitação de acesso ao SIGEPREV
+        descricao: Solicitar acesso ao SIGEPREV.
+        palavras_chave:
+        - acesso ao sigeprev
+        - solicita.*acesso
+        - liberação de acesso
+        - liberacao de acesso
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 214
+        origem: taxonomia_anterior
+        status: mantido
+      alteracao_perfil:
+        nome: Alteração de perfil
+        descricao: Alterar perfil de usuário no SIGEPREV.
+        palavras_chave:
+        - alteração de perfil
+        - alteracao de perfil
+        - mudança de perfil
+        - mudanca de perfil
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 7
+        origem: taxonomia_anterior
+        status: mantido
+      gerador_relatorios:
+        nome: Acesso ao Gerador de Relatórios
+        descricao: Acesso ao módulo de gerador de relatórios.
+        palavras_chave:
+        - gerador de relatórios
+        - gerador de relatorios
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 1
+        origem: taxonomia_anterior
+        status: mantido
+      tela_painel_recadastramento:
+        nome: Tela painel de recadastramento
+        descricao: Acesso ao painel de recadastramento.
+        palavras_chave:
+        - painel de recadastramento
+        - recadastramento
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 3
+        origem: taxonomia_anterior
+        status: mantido
+  Processamento de Arquivos:
+    motivos:
+      disponibilidade_arquivos:
+        nome: Disponibilidade de arquivos
+        descricao: Arquivos não disponíveis para processamento.
+        palavras_chave:
+        - disponibilidade de arquivos
+        - arquivos.*disponibil
+        - disponibilidade
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 8
+        uso_tickets: 194
+        origem: taxonomia_anterior
+        status: mantido
+      processamento_arrecadacao:
+        nome: Processamento de arrecadação
+        descricao: Processamento de arquivos de arrecadação.
+        palavras_chave:
+        - arrecadação
+        - arrecadacao
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 0
+        origem: taxonomia_anterior
+        status: sem_uso
+      de_com_2026:
+        nome: de + com + 2026
+        descricao: Motivo descoberto via clustering emergente (cluster 30, 39 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 39
+        origem: cluster_30
+        status: novo_aprovado
+  Folha de Pagamento:
+    motivos:
+      pr_trimestre:
+        nome: PR – trimestre
+        descricao: ''
+        palavras_chave:
+        - PR
+        - trimestre
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 226
+        origem: taxonomia_anterior
+        status: mantido
+      valor_beneficio:
+        nome: Valor do benefício
+        descricao: ''
+        palavras_chave:
+        - valor
+        - benefício
+        - beneficio
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 64
+        origem: taxonomia_anterior
+        status: mantido
+      reinclusao_pensionista:
+        nome: Reinclusão de pensionista
+        descricao: ''
+        palavras_chave:
+        - reinclusão
+        - reinclusao
+        - pensionista
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 2
+        origem: taxonomia_anterior
+        status: mantido
+  Monitoramento Folha:
+    motivos:
+      monitoramento:
+        nome: Monitoramento de folha
+        descricao: ''
+        palavras_chave:
+        - monitoramento
+        - folha
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 307
+        origem: taxonomia_anterior
+        status: mantido
+      de_auditoria_de_auditoria:
+        nome: de auditoria + de + auditoria
+        descricao: Motivo descoberto via clustering emergente (cluster 21, 35 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 35
+        origem: cluster_21
+        status: novo_aprovado
+      do_validacao_do_salario:
+        nome: do + validação do + salário
+        descricao: Motivo descoberto via clustering emergente (cluster 27, 31 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 31
+        origem: cluster_27
+        status: novo_aprovado
+      da_carga_das_inclusao_das:
+        nome: da carga + das + inclusão das
+        descricao: Motivo descoberto via clustering emergente (cluster 16, 30 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 30
+        origem: cluster_16
+        status: novo_aprovado
+      de_validacao_do_renda:
+        nome: de + validação do + renda
+        descricao: Motivo descoberto via clustering emergente (cluster 24, 30 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 30
+        origem: cluster_24
+        status: novo_aprovado
+      do_produto_produto_geracao:
+        nome: do produto + produto + geração
+        descricao: Motivo descoberto via clustering emergente (cluster 80, 30 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 30
+        origem: cluster_80
+        status: novo_aprovado
+      dos_ativacao_validacao_corte:
+        nome: dos ativação + validação + corte
+        descricao: Motivo descoberto via clustering emergente (cluster 32, 30 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 30
+        origem: cluster_32
+        status: novo_aprovado
+  Extinção:
+    motivos:
+      extincao:
+        nome: Extinção
+        descricao: ''
+        palavras_chave:
+        - extinção
+        - extincao
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 409
+        origem: taxonomia_anterior
+        status: mantido
+  Relatório:
+    motivos:
+      relatorio:
+        nome: Relatório
+        descricao: ''
+        palavras_chave:
+        - relatório
+        - relatorio
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 253
+        origem: taxonomia_anterior
+        status: mantido
+  Documentação:
+    motivos:
+      documento:
+        nome: Documentação
+        descricao: ''
+        palavras_chave:
+        - documento
+        - documentação
+        - documentacao
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 76
+        origem: taxonomia_anterior
+        status: mantido
+      informativo_informativo_gpr_gpr:
+        nome: informativo + informativo gpr + gpr
+        descricao: Motivo descoberto via clustering emergente (cluster 11, 58 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 58
+        origem: cluster_11
+        status: novo_aprovado
+      produto_2024_2025:
+        nome: produto + 2024 + 2025
+        descricao: Motivo descoberto via clustering emergente (cluster 79, 46 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 46
+        origem: cluster_79
+        status: novo_aprovado
+      evolucoes_financeiras_financeiras_evolucoes:
+        nome: evoluções financeiras + financeiras + evoluções
+        descricao: Motivo descoberto via clustering emergente (cluster 2, 42 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 42
+        origem: cluster_2
+        status: novo_aprovado
+      sigedoc_arquivos_publicacao:
+        nome: sigedoc + arquivos + publicação
+        descricao: Motivo descoberto via clustering emergente (cluster 51, 35 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 35
+        origem: cluster_51
+        status: novo_aprovado
+      informativo_dtr_informativo_dtr:
+        nome: informativo dtr + informativo + dtr
+        descricao: Motivo descoberto via clustering emergente (cluster 19, 35 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 35
+        origem: cluster_19
+        status: novo_aprovado
+  Aplicações Folha:
+    motivos:
+      aplicacao:
+        nome: Aplicações folha
+        descricao: ''
+        palavras_chave:
+        - aplicação
+        - aplicacao
+        - folha
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 66
+        origem: taxonomia_anterior
+        status: mantido
+      de_salario_13:
+        nome: de + salário + 13
+        descricao: Motivo descoberto via clustering emergente (cluster 53, 77 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 77
+        origem: cluster_53
+        status: novo_aprovado
+      de_parametrizacao_parametrizacao_de:
+        nome: de + parametrização + parametrização de
+        descricao: Motivo descoberto via clustering emergente (cluster 74, 42 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 42
+        origem: cluster_74
+        status: novo_aprovado
+  VTC:
+    motivos:
+      vtc:
+        nome: VTC
+        descricao: ''
+        palavras_chave:
+        - vtc
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 162
+        origem: taxonomia_anterior
+        status: mantido
+  CTC:
+    motivos:
+      ctc:
+        nome: CTC
+        descricao: ''
+        palavras_chave:
+        - ctc
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 10
+        uso_tickets: 77
+        origem: taxonomia_anterior
+        status: mantido
+      de_acessar_protocolo_protocolo:
+        nome: de + acessar protocolo + protocolo
+        descricao: Motivo descoberto via clustering emergente (cluster 46, 77 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 77
+        origem: cluster_46
+        status: novo_aprovado
+  1ª Etapa Censo:
+    motivos:
+      censo_nao_erro:
+        nome: censo + não + erro
+        descricao: Motivo descoberto via clustering emergente (cluster 18, 90 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 90
+        origem: cluster_18
+        status: novo_aprovado
+  Extinção - Divergencia de Valores:
+    motivos:
+      de_do_com:
+        nome: de + do + com
+        descricao: Motivo descoberto via clustering emergente (cluster 9, 82 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 82
+        origem: cluster_9
+        status: novo_aprovado
+  Homologação:
+    motivos:
+      homologacao_63879_homologacao_63879:
+        nome: homologação + 63879 homologação + 63879
+        descricao: Motivo descoberto via clustering emergente (cluster 56, 72 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 72
+        origem: cluster_56
+        status: novo_aprovado
+  BI:
+    motivos:
+      bi_spprev_bi_spprev:
+        nome: bi + spprev + bi spprev
+        descricao: Motivo descoberto via clustering emergente (cluster 34, 59 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 59
+        origem: cluster_34
+        status: novo_aprovado
+  DIRF:
+    motivos:
+      dirf_retificacao_retificacao_dirf:
+        nome: dirf + retificação + retificação dirf
+        descricao: Motivo descoberto via clustering emergente (cluster 35, 56 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 56
+        origem: cluster_35
+        status: novo_aprovado
+  Recebimento de Documentos:
+    motivos:
+      de_arquivos_disponibilidade_disponibilidade_de:
+        nome: de arquivos + disponibilidade + disponibilidade de
+        descricao: Motivo descoberto via clustering emergente (cluster 3, 45 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 45
+        origem: cluster_3
+        status: novo_aprovado
+      de_disponibilidade_de_de_arquivos:
+        nome: de + disponibilidade de + de arquivos
+        descricao: Motivo descoberto via clustering emergente (cluster 52, 39 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 39
+        origem: cluster_52
+        status: novo_aprovado
+  Help360:
+    motivos:
+      acesso_help_help360:
+        nome: acesso + help + help360
+        descricao: Motivo descoberto via clustering emergente (cluster 13, 42 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 42
+        origem: cluster_13
+        status: novo_aprovado
+  Ficha Financeira:
+    motivos:
+      ficha_de_financeira:
+        nome: ficha + de + financeira
+        descricao: Motivo descoberto via clustering emergente (cluster 12, 38 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 38
+        origem: cluster_12
+        status: novo_aprovado
+      responsavel_responsavel_responsavel_anexo:
+        nome: responsável + responsável responsável + anexo
+        descricao: Motivo descoberto via clustering emergente (cluster 87, 35 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 35
+        origem: cluster_87
+        status: novo_aprovado
+  Arrecadação:
+    motivos:
+      portaria_193_portaria_193:
+        nome: portaria 193 + portaria + 193
+        descricao: Motivo descoberto via clustering emergente (cluster 60, 33 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 33
+        origem: cluster_60
+        status: novo_aprovado
+  Monitoramento e Controle de Dados e Processos:
+    motivos:
+      folha_de_validacao:
+        nome: folha + de + validação
+        descricao: Motivo descoberto via clustering emergente (cluster 73, 30 tickets).
+        palavras_chave: []
+        requer_autorizacao: false
+        ativo: true
+        precedencia: 50
+        uso_tickets: 30
+        origem: cluster_73
+        status: novo_aprovado
+motivos_transversais:
+  outros:
+    nome: Outros / não classificado
+    descricao: Não corresponde a nenhum motivo do catálogo.
+    palavras_chave: []
+    requer_autorizacao: false
+    ativo: true
+    precedencia: 999
+  sem_texto_suficiente:
+    nome: Sem texto suficiente
+    descricao: Ticket sem descrição/mensagem/solução para classificar.
+    palavras_chave: []
+    requer_autorizacao: false
+    ativo: true
+    precedencia: 999
+  divergência_categoria:
+    nome: Divergência de categoria declarada vs. real
+    descricao: Categoria declarada diferente da inferida pelo texto.
+    palavras_chave: []
+    requer_autorizacao: false
+    ativo: true
+    precedencia: 999
+ambiguidades:
+- motivo: Correção / Erro / Retorno para determinado fluxo
+  categoria: Retorno de Tarefa
+  problema: Genéricos demais (17 tickets no DOCX só em 'Retorno para determinado fluxo').
+    Escondem subgrupos.
+  acao: Rodar descoberta não supervisionada (Fase 5) nesses tickets e propor subgrupos.
+- motivo: Incorporar juros e correção (decisão judicial)
+  categoria: Retorno de Tarefa
+  problema: Aparece duplicado com e sem '(decisão judicial)' no DOCX.
+  acao: Propor mesclar ou separar com justificativa.
+- motivo: Erro no cálculo de correção de saldo de inatividade – fluxo de extinção
+    / Saldo de extinção divergente
+  categoria: Cadastro
+  problema: Parecem pertencer a Extinção, não Cadastro. Possível categoria declarada
+    ≠ real.
+  acao: Verificar se a categoria declarada está correta; considerar mover para Extinção.

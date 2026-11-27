@@ -22,6 +22,14 @@ venv/
 .pytest_cache/
 .ruff_cache/
 
+# ============ MODELOS DE ML ============
+*.pkl
+*.sav
+*.joblib
+
+# ============ ARTEFATOS DE MONITORAMENTO ============
+*.json
+
 # ============ SEGREDOS ============
 .streamlit/secrets.toml
 .env

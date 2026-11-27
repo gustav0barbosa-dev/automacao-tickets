@@ -228,34 +228,14 @@ def render_legenda():
 
 # ==================== ÁRVORE (networkx + matplotlib) ====================
 def buscar_ticket(ticket_id):
-    """Busca um ticket + suas movimentações no PostgreSQL."""
-    from data import get_engine
-    import pandas as pd
+    """Busca um ticket + suas movimentações via Neon Data API."""
+    from data import carregar_movimentacoes_por_ticket, carregar_ticket_por_id
 
-    engine = get_engine()
-    if engine is None:
-        return None, None
-
-    # Busca ticket
-    ticket = pd.read_sql(
-        f"SELECT id, titulo, status, responsavel_atual, solicitante, "
-        f"categoria, prioridade, criado_data, alterado_data "
-        f"FROM tickets WHERE id = {int(ticket_id)}",
-        engine
-    )
-
+    ticket = carregar_ticket_por_id(ticket_id)
     if ticket.empty:
         return None, None
 
-    # Busca movimentações
-    movs = pd.read_sql(
-        f"SELECT data_movimentacao, autor, para_status, tipo "
-        f"FROM movimentacoes "
-        f"WHERE ticket_id = {int(ticket_id)} "
-        f"ORDER BY data_movimentacao ASC",
-        engine
-    )
-
+    movs = carregar_movimentacoes_por_ticket(ticket_id)
     return ticket.iloc[0], movs
 
 def gerar_arvore_ticket_matplotlib(ticket, movs, analistas):

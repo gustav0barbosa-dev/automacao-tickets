@@ -102,6 +102,11 @@ python scripts\diagnosticar_tickets.py
 
 # Ver dashboard
 python -m streamlit run dashboard/app.py
+
+# Acesso
+usuário: gustavo
+senha: 123Gustavo
+
 📁 Estrutura do Projeto
 text
 automacao-tickets/
@@ -230,6 +235,7 @@ scripts/diagnosticar_tickets.py	Aplica matriz de verdade
 scripts/verificar_banco.py	Verifica schema
 scripts/verificar_ticket.py <ID>	Detalhes de um ticket
 scripts/explorar_ticket.py --id <ID>	Explora HTML de um ticket
+scripts/exportar_tickets_excel.py	Gera planilha Excel com os tickets do banco
 🎯 Estado Atual
 ✅ Implementado
 Pipeline completo (coleta → enriquecimento → análise)
@@ -296,4 +302,3 @@ Papel	Nome
 Product Owner	Marilia Amaral Marcondes | Gustavo Henrique Barbosa da Silva
 Mantenedor	Gustavo Henrique Barbosa da Silva
 Equipe	DIO/SPRO — SPPREV
-Repositório: github.com/gustav0barbosa-dev/automacao-tickets

@@ -2,108 +2,128 @@
 chcp 65001 >nul
 cls
 
+echo ============================================================
+echo  HELP360 - ATUALIZAR E PUBLICAR
+echo ============================================================
+echo.
+echo  Este script vai:
+echo    1. Baixar tickets do Help360 (Programa1)
+echo    2. Sincronizar banco (Programa4 - remove orfaos)
+echo    3. Enriquecer (Programa5)
+echo    4. Analisar SLA
+echo    5. Anonimizar (LGPD)
+echo    6. Recomprimir banco (.gz)
+echo    7. Commit + push (Railway migra)
+echo.
+echo ============================================================
+pause
+
 cd /d "%~dp0"
-if exist ".venv\Scripts\activate.bat" call .venv\Scripts\activate.bat
 
-:MENU
-cls
-echo ============================================================
-echo  HELP360 - MENU PRINCIPAL
-echo ============================================================
-echo.
-echo  [1] Atualizacao rapida (so download + persistencia)
-echo  [2] Atualizacao completa (tudo + anonimizacao + push)
-echo  [3] So enriquecer (Programa5)
-echo  [4] So analise de SLA
-echo  [5] Testar anonimizacao
-echo  [6] Ver status do banco
-echo  [7] Rodar dashboard local
-echo  [8] Sair
+REM Ativa o venv
+if exist ".venv\Scripts\activate.bat" (
+    call .venv\Scripts\activate.bat
+)
+
+REM ==================== FASE 1: BAIXAR ====================
 echo.
 echo ============================================================
-set /p OPCAO="Escolha uma opcao [1-8]: "
-
-if "%OPCAO%"=="1" goto RAPIDO
-if "%OPCAO%"=="2" goto COMPLETO
-if "%OPCAO%"=="3" goto ENRIQUECER
-if "%OPCAO%"=="4" goto SLA
-if "%OPCAO%"=="5" goto ANON_TESTE
-if "%OPCAO%"=="6" goto STATUS
-if "%OPCAO%"=="7" goto DASHBOARD
-if "%OPCAO%"=="8" goto SAIR
-goto MENU
-
-:RAPIDO
-cls
-echo [1/2] Baixando tickets...
+echo  FASE 1/6 - Baixar tickets do Help360
+echo ============================================================
 python src\Programa1_download.py
-echo [2/2] Persistindo...
-python src\programa4_persistir.py
-pause
-goto MENU
+if errorlevel 1 (
+    echo [ERRO] Programa1 falhou!
+    pause
+    exit /b 1
+)
 
-:COMPLETO
-cls
-echo [1/6] Download...
-python src\Programa1_download.py
-if errorlevel 1 goto ERRO
-echo [2/6] Persistencia...
+REM ==================== FASE 2: SINCRONIZAR ====================
+echo.
+echo ============================================================
+echo  FASE 2/6 - Sincronizar banco (remove orfaos)
+echo ============================================================
 python src\programa4_persistir.py
-if errorlevel 1 goto ERRO
-echo [3/6] Enriquecimento...
+if errorlevel 1 (
+    echo [ERRO] Programa4 falhou!
+    pause
+    exit /b 1
+)
+
+REM ==================== FASE 3: ENRIQUECER ====================
+echo.
+echo ============================================================
+echo  FASE 3/6 - Enriquecer (Programa5)
+echo ============================================================
 python src\programa5_enriquecer.py --dias 30
-echo [4/6] SLA...
+if errorlevel 1 (
+    echo [AVISO] Programa5 falhou - continuando...
+)
+
+REM ==================== FASE 4: SLA ====================
+echo.
+echo ============================================================
+echo  FASE 4/6 - Analise de SLA
+echo ============================================================
 python scripts\analisar_sla_criticidade.py
-echo [5/6] Anonimizacao...
+
+REM ==================== FASE 5: LGPD ====================
+echo.
+echo ============================================================
+echo  FASE 5/6 - Anonimizacao LGPD
+echo ============================================================
 python scripts\anonimizar_retroativo.py
-echo [6/6] Compactar + commit + push...
-python -c "import gzip, shutil; f_in=open('dados/tickets.db','rb'); f_out=gzip.open('dados/tickets.db.gz','wb'); shutil.copyfileobj(f_in, f_out); f_in.close(); f_out.close()"
-git add -f dados\tickets.db.gz
-git commit -m "sync: banco atualizado"
-git push origin main
+
+REM ==================== FASE 6: RECOMPRIMIR + PUSH ====================
 echo.
-echo [OK] Concluido!
-pause
-goto MENU
-
-:ENRIQUECER
-cls
-python src\programa5_enriquecer.py --dias 30
-pause
-goto MENU
-
-:SLA
-cls
-python scripts\analisar_sla_criticidade.py
-pause
-goto MENU
-
-:ANON_TESTE
-cls
-python scripts\testar_anonimizacao.py
-pause
-goto MENU
-
-:STATUS
-cls
 echo ============================================================
-echo  STATUS DO BANCO
+echo  FASE 6/6 - Recomprimir + commit + push
 echo ============================================================
-python -c "import sqlite3; c=sqlite3.connect('dados/tickets.db'); print('Tickets:', c.execute('SELECT COUNT(*) FROM tickets').fetchone()[0]); print('Movimentacoes:', c.execute('SELECT COUNT(*) FROM movimentacoes').fetchone()[0]); print('Mensagens:', c.execute('SELECT COUNT(*) FROM mensagens').fetchone()[0]); c.close()"
+
+REM Confirma o total no SQLite
+python -c "import sqlite3; conn = sqlite3.connect('dados/tickets.db'); print(f'Tickets no SQLite: {conn.execute(\"SELECT COUNT(*) FROM tickets\").fetchone()[0]}'); conn.close()"
+
+REM Recomprimir
+echo.
+echo Recomprimindo banco...
+python -c "import gzip, shutil; f_in=open('dados/tickets.db','rb'); f_out=gzip.open('dados/tickets.db.gz','wb'); shutil.copyfileobj(f_in, f_out); f_in.close(); f_out.close(); print('OK: .gz gerado')"
+
+REM Confirma o .gz
+python scripts\verificar_gz.py
+
+REM Adiciona + commit + push
+echo.
+echo Fazendo commit + push...
+git add -f dados/tickets.db.gz
+git add src\*.py scripts\*.py dashboard\*.py
+
+REM Verifica se tem mudanca
+git diff --cached --quiet
+if errorlevel 1 (
+    REM Tem mudanca
+    set DATA=%date:~-4%%date:~3,2%%date:~0,2%_%time:~0,2%%time:~3,2%
+    set DATA=%DATA: =0%
+    git commit -m "sync: banco atualizado em %DATA%"
+    git push origin main
+    if errorlevel 1 (
+        echo [ERRO] Push falhou!
+        pause
+        exit /b 1
+    )
+    echo.
+    echo [OK] Push feito! Railway vai migrar em ~2 min.
+) else (
+    echo [AVISO] Nada a commitar
+)
+
+echo.
+echo ============================================================
+echo  CONCLUIDO!
+echo ============================================================
+echo.
+echo Proximos passos:
+echo   1. Aguarde ~2 min (Railway migra)
+echo   2. Va no Streamlit Cloud e faca Reboot
+echo   3. Abra o dashboard atualizado
+echo.
+
 pause
-goto MENU
-
-:DASHBOARD
-cls
-echo Iniciando dashboard local...
-echo Acesse: http://localhost:8501
-streamlit run dashboard/app.py
-goto MENU
-
-:ERRO
-echo [ERRO] Algo falhou!
-pause
-goto MENU
-
-:SAIR
-exit /b 0

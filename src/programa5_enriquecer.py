@@ -1,8 +1,14 @@
 # ============================================================
-# programa5_enriquecer.py (v7 — HISTÓRICO VIA HTML)
+# programa5_enriquecer.py (v8 — REPROCESSO POR ALTERAÇÃO)
 # ============================================================
 """
 Programa 5 — Enriquecimento de Tickets.
+
+MUDANÇAS v8:
+  - Reprocessa tickets cujo criado_data OU alterado_data mudou
+    depois do último enriquecimento (coluna enriquecido_em)
+  - Filtro por período considera as duas datas (criado e alterado)
+  - Novas opções --criados-hoje / --criados-desde
 
 MUDANÇAS v7:
   - Extrai o HISTÓRICO completo direto do HTML (não do Excel)
@@ -16,7 +22,7 @@ import re
 import sqlite3
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from getpass import getpass
 from pathlib import Path
 
@@ -63,27 +69,75 @@ def conectar():
     conn = sqlite3.connect(CAMINHO_BANCO)
     conn.row_factory = sqlite3.Row
     conn.execute('PRAGMA foreign_keys = ON')
+    garantir_coluna_enriquecido_em(conn)
     return conn
 
 
+def garantir_coluna_enriquecido_em(conn):
+    """Cria a coluna enriquecido_em se ainda não existir (migração leve)."""
+    colunas = {linha[1] for linha in conn.execute('PRAGMA table_info(tickets)')}
+    if 'enriquecido_em' in colunas:
+        return
+
+    conn.execute('ALTER TABLE tickets ADD COLUMN enriquecido_em DATETIME')
+
+    # Baseline única: para quem já foi processado, assume que os dados
+    # gravados refletem a última alteração (evita reprocessar todo o passado).
+    conn.execute('''
+        UPDATE tickets
+           SET enriquecido_em = COALESCE(alterado_data, criado_data)
+         WHERE enriquecido IN (1, 3)
+    ''')
+    conn.commit()
+    log('Coluna enriquecido_em criada (baseline = última alteração).', 'AVISO')
+
+
 def listar_tickets(conn, limite=None, ticket_id=None, dias=None,
-                   desde=None, todos=False):
+                   desde=None, todos=False, criados_de=None, criados_ate=None,
+                   incluir_enriquecidos=False):
     if ticket_id:
         cur = conn.execute('SELECT id FROM tickets WHERE id = ?', (int(ticket_id),))
         return [r[0] for r in cur.fetchall()]
 
-    sql = 'SELECT id FROM tickets WHERE enriquecido = 0'
+    sql = 'SELECT id FROM tickets WHERE 1 = 1'
     params = []
 
-    if not todos:
-        if dias is not None:
-            sql += " AND alterado_data >= date('now', ?)"
-            params.append(f'-{dias} days')
-        elif desde:
-            sql += ' AND alterado_data >= ?'
-            params.append(desde)
+    if criados_de:
+        # Filtro explícito por data de abertura (--criados-hoje / --criados-desde)
+        sql += ' AND criado_data >= ?'
+        params.append(criados_de)
+        if criados_ate:
+            sql += ' AND criado_data < ?'
+            params.append(criados_ate)
+        if not incluir_enriquecidos:
+            sql += ' AND enriquecido = 0'
+    else:
+        # Precisa enriquecer quando:
+        #   - nunca foi enriquecido, OU
+        #   - criado/alterado DEPOIS do último enriquecimento
+        sql += '''
+            AND (
+                enriquecido = 0
+                OR enriquecido_em IS NULL
+                OR alterado_data > enriquecido_em
+                OR criado_data   > enriquecido_em
+            )
+        '''
 
-    sql += ' ORDER BY alterado_data DESC'
+        if not todos:
+            if dias is not None:
+                sql += (" AND (alterado_data >= date('now', ?)"
+                        " OR criado_data >= date('now', ?))")
+                params.extend([f'-{dias} days', f'-{dias} days'])
+            elif desde:
+                sql += ' AND (alterado_data >= ? OR criado_data >= ?)'
+                params.extend([desde, desde])
+
+    if criados_de:
+        sql += ' ORDER BY criado_data DESC'
+    else:
+        sql += (" ORDER BY MAX(COALESCE(alterado_data, ''),"
+                " COALESCE(criado_data, '')) DESC")
     if limite:
         sql += ' LIMIT ?'
         params.append(limite)
@@ -92,8 +146,16 @@ def listar_tickets(conn, limite=None, ticket_id=None, dias=None,
     return [r[0] for r in cur.fetchall()]
 
 
+def agora_local():
+    """Timestamp local no mesmo formato de criado_data/alterado_data."""
+    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+
 def marcar_skip(conn, ticket_id):
-    conn.execute('UPDATE tickets SET enriquecido = 3 WHERE id = ?', (ticket_id,))
+    conn.execute(
+        'UPDATE tickets SET enriquecido = 3, enriquecido_em = ? WHERE id = ?',
+        (agora_local(), ticket_id),
+    )
     conn.commit()
 
 
@@ -467,6 +529,7 @@ def atualizar_ticket(conn, ticket_id, detalhes):
             solucao           = COALESCE(?, solucao),
             sistema           = COALESCE(?, sistema),
             enriquecido       = 1,
+            enriquecido_em    = ?,
             atualizado_em     = CURRENT_TIMESTAMP
         WHERE id = ?
     ''', (
@@ -483,6 +546,7 @@ def atualizar_ticket(conn, ticket_id, detalhes):
         detalhes.get('empresa'),
         detalhes.get('solucao'),
         detalhes.get('sistema'),
+        agora_local(),
         ticket_id,
     ))
     conn.commit()
@@ -556,13 +620,17 @@ def main():
     parser.add_argument('--dias', type=int, default=30)
     parser.add_argument('--desde', type=str)
     parser.add_argument('--todos', action='store_true')
+    parser.add_argument('--criados-hoje', action='store_true',
+                        help='apenas tickets criados hoje (inclui já enriquecidos)')
+    parser.add_argument('--criados-desde', type=str,
+                        help='apenas tickets criados a partir desta data (AAAA-MM-DD)')
     parser.add_argument('--usuario', type=str, default=USUARIO_PADRAO)
     args = parser.parse_args()
 
     inicio = datetime.now()
 
     print('=' * 60)
-    print('PROGRAMA 5 — ENRIQUECIMENTO (v7 — HTML)')
+    print('PROGRAMA 5 — ENRIQUECIMENTO (v8 — REPROCESSO POR ALTERAÇÃO)')
     print('=' * 60)
     print(f'📁 Banco: {CAMINHO_BANCO}')
 
@@ -572,6 +640,31 @@ def main():
 
     conn = conectar()
 
+    if args.criados_hoje and args.todos:
+        log('Use --criados-hoje OU --todos, não os dois.', 'ERRO')
+        conn.close()
+        return False
+
+    # Filtro por data de criação (tickets "abertos" no período)
+    criados_de = None
+    criados_ate = None
+    incluir_enriquecidos = False
+
+    if args.criados_hoje:
+        hoje = datetime.now().date()
+        criados_de = f'{hoje:%Y-%m-%d} 00:00:00'
+        criados_ate = f'{hoje + timedelta(days=1):%Y-%m-%d} 00:00:00'
+        incluir_enriquecidos = True
+    elif args.criados_desde:
+        try:
+            data_base = pd.to_datetime(args.criados_desde, dayfirst=True).date()
+        except Exception:
+            log(f'Data inválida em --criados-desde: {args.criados_desde}', 'ERRO')
+            conn.close()
+            return False
+        criados_de = f'{data_base:%Y-%m-%d} 00:00:00'
+        incluir_enriquecidos = True
+
     if args.todos:
         conn.execute('UPDATE tickets SET enriquecido = 0')
         conn.commit()
@@ -579,17 +672,23 @@ def main():
 
     if args.ticket:
         modo = f'ticket específico #{args.ticket}'
+    elif args.criados_hoje:
+        modo = 'tickets criados HOJE (inclui já enriquecidos)'
+    elif args.criados_desde:
+        modo = f'tickets criados desde {criados_de[:10]} (inclui já enriquecidos)'
     elif args.todos:
         modo = 'TODOS'
     elif args.desde:
-        modo = f'alterados desde {args.desde}'
+        modo = f'pendentes + alterados/criados desde {args.desde}'
     else:
-        modo = f'alterados nos últimos {args.dias} dias'
+        modo = (f'pendentes + alterados/criados nos últimos '
+                f'{args.dias} dias')
 
     print(f'🎯 Modo: {modo}')
 
     ids = listar_tickets(conn, args.limite, args.ticket,
-                         args.dias, args.desde, args.todos)
+                         args.dias, args.desde, args.todos,
+                         criados_de, criados_ate, incluir_enriquecidos)
 
     if not ids:
         log('Nenhum ticket para enriquecer.', 'OK')

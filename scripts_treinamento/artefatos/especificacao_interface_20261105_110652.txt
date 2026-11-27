@@ -1,0 +1,77 @@
+
+================================================================================
+ESPECIFICAÇÃO DOS DADOS PARA A INTERFACE STREAMLIT (Etapa 2)
+================================================================================
+
+1. ESTRUTURA DE DADOS DE ENTRADA (saída desta auditoria)
+
+Tabela 1 — clusters_auditoria (uma linha por cluster):
+- cluster_id: identificador do cluster
+- n_tickets: quantidade de tickets no cluster
+- coerencia: 'alta' | 'média' | 'baixa'
+- categorias_dominantes: categoria(s) predominante(s) com contagem
+- assunto_sugerido: texto curto baseado nos termos característicos
+- termos_caracteristicos: top termos (c-TF-IDF)
+- exemplos_representativos: até 3 títulos de tickets do cluster
+- exemplos_divergentes: até 3 títulos que não se encaixam bem
+- acao_recomendada: 'Aprovar motivo' | 'Revisar exemplos divergentes' |
+                      'Dividir cluster' | 'Descartar ou revisar termos'
+
+Tabela 2 — tickets_com_cluster (uma linha por ticket):
+- ticket_id: identificador interno do ticket (anonimizado, OK para exibir)
+- categoria: categoria declarada no banco
+- cluster_id: cluster ao qual pertence (-1 = ruído)
+- titulo: título do ticket (já anonimizado)
+- texto_retrospectivo: texto completo já anonimizado
+- motivo_atribuido_regras: motivo pelas regras frágeis
+- distancia_ao_centroide: (opcional, Fase 4) distância semântica ao centro do cluster
+- eh_divergente: booleano se o ticket é divergente dentro do cluster
+
+2. QUATRO FILAS DE REVISÃO
+
+Fila 1 — Alta confiança (prioridade baixa)
+- Clusters com coerência 'alta' e ação 'Aprovar motivo'
+- Exemplo em lote: analista aprova todo o cluster de uma vez
+
+Fila 2 — Divergência (prioridade alta)
+- Tickets onde regras classificam como categoria X, mas o cluster aponta categoria Y
+- Ou tickets com exemplos_divergentes preenchidos
+
+Fila 3 — Baixa confiança (prioridade alta)
+- Clusters com coerência 'baixa'
+- Tickets com texto curto (< 50 chars) ou sem contexto suficiente
+
+Fila 4 — Assunto emergente (exploração)
+- Clusters ainda não aprovados, com coerência 'média' ou 'alta'
+- Ruído com padrões recorrentes (protocolo, sigeprev, erro)
+
+3. DECISÕES DO ANALISTA
+
+Por cluster:
+- Aprovar motivo → cria/atualiza motivo na taxonomia
+- Dividir cluster → gera sub-clusters para revisão posterior
+- Descartar → remove do catálogo de motivos candidatos
+- Revisar exemplos divergentes → marca tickets individuais para Fila 2
+
+Por ticket individual:
+- motivo_correto: texto livre ou seleção da taxonomia
+- observacao: campo livre
+- não é possível determinar: checkbox para não forçar escolha
+
+4. ANONIMIZAÇÃO E CONTROLE DE ACESSO
+
+- Todos os textos já passaram por anonimização LGPD (src/utils_anonimizacao.py)
+  antes de chegar aos artefatos: CPF→00000000000, nomes→iniciais,
+  telefones→0000000000, anexos→<ARQUIVO>.
+- ticket_id pode ser exibido (identificador interno, não dado pessoal).
+- Antes de disponibilizar a interface para múltiplos analistas, aplicar
+  controle de acesso por perfil (ADMIN vs analista vs apenas-leitura).
+
+5. INDICADORES DE QUALIDADE (para a Fase 5)
+
+- Coerência média dos clusters aprovados
+- % de clusters divididos vs aprovados
+- Taxa de concordância analista × sugestão automática
+- Nº de novos motivos adicionados à taxonomia
+
+================================================================================

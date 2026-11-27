@@ -1,0 +1,5 @@
+Relatório de cobertura — 2026-11-05T09:59:22.154539
+
+Modo retrospectivo: {'total': 10349, 'com_texto': 10150, 'cobertura_pct': np.float64(98.08), 'tamanho_medio': 749.29}
+
+Modo triagem: {'total': 10349, 'com_texto': 10150, 'cobertura_pct': np.float64(98.08), 'tamanho_medio': 138.51}

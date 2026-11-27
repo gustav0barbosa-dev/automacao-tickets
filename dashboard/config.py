@@ -18,18 +18,15 @@ COR_TEXT = '#eae7e1'
 COR_TEXT_SEC = '#9299a6'
 COR_TEXT_TER = '#5c6270'
 COR_GRID = 'rgba(255,255,255,.05)'
+COR_INFO = '#6fa8dc'
 
 # ==================== MENU ====================
 MENU_PAGINAS = [
-    'Visão Geral',
-    'Tempo de Resposta',
-    'SLA',
-    'Produtividade',
-    'Backlog',
-    'Roteamento',
-    'Reincidência',
-    'Diagnóstico',   
-    'Tendências',
+    'SLA + Reincidência',   # Etapa 2 — Pessoa A
+    'Produtividade + Roteamento',  # Etapa 3 — Pessoa A
+    'Validação de Motivos',  # Fase 3 — Etapa 2
+    'Monitoramento',         # Fase 3 — Etapa 5
+    'Inteligência de Tickets',  # Fase 4 — Nova área de inteligência operacional
 ]
 
 # ==================== STATUS ====================
@@ -50,27 +47,23 @@ MENU_GRUPOS = [
         'icone': 'chart-line',
         'paginas': [
             'Visão Geral',
-            'Tempo de Resposta',
-            'SLA',
-            'Produtividade',
+            'SLA + Reincidência',
+            'Produtividade + Roteamento',
         ],
     },
     {
         'titulo': 'OPERAÇÃO',
         'icone': 'inbox',
         'paginas': [
-            'Backlog',
-            'Roteamento',
-            'Reincidência',
-            'Diagnóstico',
-            'Tendências',
+            'Validação de Motivos',
+            'Monitoramento',
         ],
     },
     {
-        'titulo': 'FERRAMENTAS',
-        'icone': 'download',
+        'titulo': 'INTELIGÊNCIA',
+        'icone': 'brain',
         'paginas': [
-            'Relatórios',
+            'Inteligência de Tickets',
         ],
     },
 ]

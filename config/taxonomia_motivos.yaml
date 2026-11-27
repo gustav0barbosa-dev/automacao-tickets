@@ -1,0 +1,719 @@
+# config/taxonomia_motivos.yaml
+# ============================================================
+# Taxonomia-semente de motivos reais de tickets (Help360 / SPPREV)
+# Fase 2 (revisada) — regras hierárquicas com precedência.
+#
+# Estrutura:
+#   categorias:
+#     <categoria_declarada>:
+#       motivos:
+#         <motivo_id>:
+#           nome: <nome legível>
+#           descricao: <descrição curta>
+#           palavras_chave: [regex case-insensitive]
+#           exemplos: [exemplos de título/texto]
+#           requer_autorizacao: false
+#           ativo: true
+#           precedencia: <int>   # menor = mais prioritario (vence em empate)
+# ============================================================
+
+versao: "2.0"
+criado_em: "2026-11-05"
+fonte: "Análise TOP 3.docx (09/2026) + inspeção do banco tickets.db"
+
+categorias:
+
+  # ============================================================
+  # RETORNO DE TAREFA (36 tickets em 09/2026 no DOCX)
+  # ============================================================
+  "Retorno de Tarefa":
+    motivos:
+      correcao_genérica:
+        nome: "Correção (genérico)"
+        descricao: "Correção sem especificação de fluxo/tarefa."
+        palavras_chave:
+          - "correção"
+          - "correcao"
+          - "ajuste"
+          - "retificar"
+        precedencia: 20
+
+      erro_genérico:
+        nome: "Erro (genérico)"
+        descricao: "Erro sem especificação de causa."
+        palavras_chave:
+          - "erro"
+          - "falha"
+          - "não funcionou"
+          - "nao funcionou"
+        precedencia: 20
+
+      status_finalizado_em_tramite:
+        nome: "Status finalizado → em trâmite (disponibilizar tarefa)"
+        descricao: "Tarefa finalizada mas precisa voltar ao trâmite."
+        palavras_chave:
+          - "finalizado"
+          - "disponibilizar tarefa"
+          - "em trâmite"
+          - "em tramite"
+        precedencia: 15
+
+      corrigir_tarefas_fluxo:
+        nome: "Corrigir tarefas do fluxo (foi para outra sem passar pela correta)"
+        descricao: "Tarefa encaminhada para fluxo errado, precisa retornar ao correto."
+        palavras_chave:
+          - "outra tarefa"
+          - "fluxo errado"
+          - "passar pela correta"
+          - "tarefa correta"
+        precedencia: 10
+
+      retorno_para_determinado_fluxo:
+        nome: "Retorno para determinado fluxo"
+        descricao: "⚠️ AMBIGUO: genérico (17 tickets no DOCX). Esconde subgrupos — rodar descoberta não supervisionada."
+        palavras_chave:
+          - "retorno"
+          - "retornar"
+          - "fluxo"
+        precedencia: 30
+
+      reativacao_fluxo:
+        nome: "Reativação do fluxo"
+        descricao: "Reativar fluxo interrompido."
+        palavras_chave:
+          - "reativar"
+          - "reativação"
+          - "reativacao"
+          - "reabrir fluxo"
+        precedencia: 15
+
+      incorporar_juros_judicial:
+        nome: "Incorporar juros e correção (decisão judicial)"
+        descricao: "Incorporar juros e correção monetária por decisão judicial."
+        palavras_chave:
+          - "juros"
+          - "correção"
+          - "correcao"
+          - "judicial"
+          - "decisão judicial"
+          - "decisao judicial"
+        precedencia: 10
+        requer_autorizacao: true
+
+      incorporar_juros:
+        nome: "Incorporar juros e correção"
+        descricao: "⚠️ AMBIGUO: aparece duplicado com '(decisão judicial)' no DOCX."
+        palavras_chave:
+          - "juros"
+          - "correção"
+          - "correcao"
+          - "incorporar"
+        precedencia: 20
+
+      portaria_em_branco:
+        nome: "Portaria em branco"
+        descricao: "Portaria sem preenchimento."
+        palavras_chave:
+          - "portaria"
+          - "em branco"
+        precedencia: 15
+
+      recalculo:
+        nome: "Recálculo"
+        descricao: "Recálculo de valores."
+        palavras_chave:
+          - "recalculo"
+          - "re-calculo"
+          - "recalcular"
+        precedencia: 15
+
+  # ============================================================
+  # REENVIO BANCÁRIO (45 tickets em 09/2026 no DOCX)
+  # ============================================================
+  "Reenvio Bancário":
+    motivos:
+      cancelamento_conta_banco:
+        nome: "Cancelamento de conta bancária (pelo Banco)"
+        descricao: "Banco cancelou a conta, cancelando o reenvio."
+        palavras_chave:
+          - "cancelamento.*reenvio"
+          - "reenvio.*cancelamento"
+          - "cancelar.*conta"
+          - "conta.*cancelada"
+        precedencia: 5
+
+      alteracao_conta_bancaria:
+        nome: "Alteração da conta bancária"
+        descricao: "Alterar conta bancária do favorecido."
+        palavras_chave:
+          - "alteração.*conta"
+          - "alteracao.*conta"
+          - "mudar.*conta"
+          - "trocar.*conta"
+        precedencia: 5
+
+      conta_corrente_dv_invalido:
+        nome: "Conta corrente/DV do favorecido inválido"
+        descricao: "Conta corrente ou dígito verificador inválido."
+        palavras_chave:
+          - "dv"
+          - "conta corrente"
+          - "dígito verificador"
+          - "digito verificador"
+        precedencia: 8
+
+      conta_cadastrada_errada:
+        nome: "Conta bancária cadastrada erroneamente"
+        descricao: "Conta cadastrada com erro."
+        palavras_chave:
+          - "cadastrada"
+          - "erroneamente"
+          - "errada"
+        precedencia: 8
+
+      tipo_numero_inscricao_invalido:
+        nome: "AT – Tipo/Número de inscrição do favorecido inválido"
+        descricao: "Tipo ou número de inscrição (CPF/CNPJ) inválido."
+        palavras_chave:
+          - "inscrição"
+          - "inscricao"
+          - "cpf"
+          - "cnpj"
+          - "tipo.*inscri"
+        precedencia: 8
+
+      reenvio_simples:
+        nome: "Reenvio (simples)"
+        descricao: "Reenvio bancário sem complicações."
+        palavras_chave:
+          - "reenvio"
+        precedencia: 50  # genérico, só se nada acima casar
+
+      recadastramento:
+        nome: "Recadastramento"
+        descricao: "Recadastramento de dados bancários."
+        palavras_chave:
+          - "recadastramento"
+          - "recadastro"
+        precedencia: 15
+
+      correcao_conta_pensao_oficio:
+        nome: "Correção de conta bancária (pensão – ofício judicial errôneo)"
+        descricao: "Conta bancária de pensão com ofício judicial errado."
+        palavras_chave:
+          - "pensão"
+          - "pensao"
+          - "ofício"
+          - "oficio"
+          - "judicial"
+        precedencia: 8
+
+      bloqueio_valor_morte_alimentante:
+        nome: "Bloqueio de valor (morte do alimentante – cancelamento de reenvio)"
+        descricao: "Bloqueio por morte do alimentante."
+        palavras_chave:
+          - "bloqueio"
+          - "morte"
+          - "alimentante"
+          - "óBito"
+          - "obito"
+          - "falecimento"
+        precedencia: 8
+
+      bloqueio_valor_restituicao_pensao:
+        nome: "Bloqueio de valor (restituição de pensão alimentícia via judicial)"
+        descricao: "Bloqueio por restituição de pensão alimentícia via judicial."
+        palavras_chave:
+          - "restituição"
+          - "restituicao"
+          - "pensão alimentícia"
+          - "pensao alimenticia"
+          - "judicial"
+        precedencia: 8
+
+      codigo_banco_errado:
+        nome: "Código do banco errado"
+        descricao: "Código do banco informado incorretamente."
+        palavras_chave:
+          - "código do banco"
+          - "codigo do banco"
+          - "banco errado"
+        precedencia: 8
+
+      h6_outros_motivos_glosa:
+        nome: "H6 – outros motivos de glosa (geralmente problema do banco)"
+        descricao: "Glosa H6, geralmente problema do banco."
+        palavras_chave:
+          - "H6"
+          - "glosa"
+          - "problema do banco"
+        precedencia: 8
+
+      saldo_valor:
+        nome: "Saldo de valor"
+        descricao: "Reenvio relacionado a saldo/valor."
+        palavras_chave:
+          - "saldo"
+          - "valor"
+        precedencia: 20
+
+  # ============================================================
+  # CADASTRO (28 tickets em 09/2026 no DOCX)
+  # ============================================================
+  "Cadastro":
+    motivos:
+      alteracao_cargo:
+        nome: "Alteração de cargo"
+        descricao: "Alterar cargo do servidor."
+        palavras_chave:
+          - "alteração de cargo"
+          - "alteracao de cargo"
+          - "mudança de cargo"
+          - "mudanca de cargo"
+        precedencia: 8
+
+      cargo_pensao:
+        nome: "Alteração/cadastro/exclusão de cargo ligada a concessão de pensão"
+        descricao: "Cargo vinculado a pensão."
+        palavras_chave:
+          - "cargo"
+          - "pensão"
+          - "pensao"
+          - "concessão"
+          - "concessao"
+        precedencia: 10
+
+      data_ingresso_sou_sp:
+        nome: "Data de ingresso no serviço público no app sou.sp"
+        descricao: "Data de ingresso incorreta no sou.sp."
+        palavras_chave:
+          - "sou.sp"
+          - "ingresso"
+          - "serviço público"
+          - "servico publico"
+        precedencia: 8
+
+      nomenclatura_cargo_sou_sp:
+        nome: "Nomenclatura de cargo incorreta no sou.sp"
+        descricao: "Nome do cargo errado no sou.sp."
+        palavras_chave:
+          - "cargo"
+          - "sou.sp"
+          - "nomenclatura"
+        precedencia: 10
+
+      nome_abreviado_sou_sp:
+        nome: "Nome abreviado no sou.sp"
+        descricao: "Nome abreviado incorretamente no sou.sp."
+        palavras_chave:
+          - "nome abreviado"
+          - "sou.sp"
+        precedencia: 10
+
+      acesso_oracle_datapump:
+        nome: "Liberação de acesso Oracle 'Datapump Thema'"
+        descricao: "Acesso Oracle Datapump Thema."
+        palavras_chave:
+          - "oracle"
+          - "datapump"
+          - "thema"
+          - "acesso"
+        precedencia: 8
+
+      cadastro_cep:
+        nome: "Cadastro de CEP"
+        descricao: "Cadastro/atualização de CEP."
+        palavras_chave:
+          - "cep"
+        precedencia: 10
+
+      cadastro_agencia:
+        nome: "Cadastro de agência"
+        descricao: "Cadastro de agência bancária."
+        palavras_chave:
+          - "agência"
+          - "agencia"
+        precedencia: 10
+
+      alteracao_data_obito:
+        nome: "Alteração de data de óbito"
+        descricao: "Corrigir data de óbito."
+        palavras_chave:
+          - "óbito"
+          - "obito"
+          - "data de óbito"
+          - "data de obito"
+        precedencia: 8
+
+      correcao_data_nascimento:
+        nome: "Correção de data de nascimento"
+        descricao: "Corrigir data de nascimento."
+        palavras_chave:
+          - "nascimento"
+          - "data de nascimento"
+        precedencia: 10
+
+      exclusao_dependentes_ir:
+        nome: "Exclusão de dependentes para IR"
+        descricao: "Excluir dependentes do Imposto de Renda."
+        palavras_chave:
+          - "dependentes"
+          - "IR"
+          - "imposto de renda"
+        precedencia: 10
+
+      cancelamento_acesso:
+        nome: "Cancelamento de acesso"
+        descricao: "Cancelar acesso do usuário."
+        palavras_chave:
+          - "cancelamento de acesso"
+          - "cancelar acesso"
+        precedencia: 10
+
+      conta_extra_2_beneficios:
+        nome: "Inclusão de conta extra para 2 benefícios"
+        descricao: "Adicionar conta extra para dois benefícios."
+        palavras_chave:
+          - "conta extra"
+          - "2 benefícios"
+          - "dois benefícios"
+        precedencia: 10
+
+      ampliacao_conta_pensao_alimenticia:
+        nome: "Ampliação do campo de conta para pensão alimentícia judicial"
+        descricao: "Ampliar campo de conta para pensão alimentícia judicial."
+        palavras_chave:
+          - "ampliação"
+          - "ampliacao"
+          - "pensão alimentícia"
+          - "pensao alimenticia"
+          - "judicial"
+        precedencia: 10
+
+      retirada_dados_acumulado_duplicidade:
+        nome: "Retirada de dados de acúmulo por duplicidade"
+        descricao: "Remover acúmulo duplicado."
+        palavras_chave:
+          - "acúmulo"
+          - "acumulo"
+          - "duplicidade"
+          - "duplicado"
+        precedencia: 10
+
+      divergencia_cpf_minha_spprev:
+        nome: "Divergência cadastral/conflito de CPF na Minha SPPREV"
+        descricao: "CPF conflitante na Minha SPPREV."
+        palavras_chave:
+          - "cpf"
+          - "minha spprev"
+          - "divergência"
+          - "divergencia"
+        precedencia: 10
+
+      email_divergente_govbr:
+        nome: "E-mail divergente Minha SPPREV × Gov.br"
+        descricao: "E-mail diferente entre Minha SPPREV e Gov.br."
+        palavras_chave:
+          - "e-mail"
+          - "email"
+          - "gov.br"
+          - "divergente"
+        precedencia: 10
+
+      correcao_saldo_extincao:
+        nome: "Erro no cálculo de correção de saldo de inatividade – fluxo de extinção"
+        descricao: "⚠️ AMBIGUO: parece pertencer a Extinção, não Cadastro."
+        palavras_chave:
+          - "saldo de inatividade"
+          - "extinção"
+          - "extincao"
+          - "correção"
+          - "correcao"
+        precedencia: 12
+
+      saldo_extincao_divergente:
+        nome: "Saldo de extinção divergente"
+        descricao: "⚠️ AMBIGUO: parece pertencer a Extinção, não Cadastro."
+        palavras_chave:
+          - "saldo de extinção"
+          - "saldo de extincao"
+          - "divergente"
+        precedencia: 12
+
+      sistema_nao_carrega_beneficios:
+        nome: "Sistema não carrega novos benefícios – Carga de Benefícios Valor Estimado"
+        descricao: "Sistema não carrega benefícios novos."
+        palavras_chave:
+          - "não carrega"
+          - "nao carrega"
+          - "benefícios"
+          - "beneficios"
+          - "carga de benefícios"
+        precedencia: 10
+
+  # ============================================================
+  # APOSENTADORIA (categoria priorizada)
+  # ============================================================
+  "Aposentadoria":
+    motivos:
+      erro_sistema_inconsistencia_tela:
+        nome: "Erro no sistema / Inconsistência na tela"
+        descricao: "Erro genérico no sistema ou inconsistência de exibição."
+        palavras_chave:
+          - "erro no sistema"
+          - "erro no sigeprev"
+          - "inconsistência na tela"
+          - "inconsistencia na tela"
+          - "urgente"
+        precedencia: 8
+
+      artigo_201_fundamentacao:
+        nome: "Artigo 201 / fundamentação de regra"
+        descricao: "Questão relacionada ao artigo 201 ou fundamentação de regra."
+        palavras_chave:
+          - "artigo 201"
+          - "fundamentação"
+          - "fundamentacao"
+          - "complemento de regra"
+        precedencia: 8
+
+      tarefa_nao_disponivel:
+        nome: "Tarefa não disponível"
+        descricao: "Tarefa não está disponível para o solicitante."
+        palavras_chave:
+          - "tarefa não disponível"
+          - "tarefa nao disponivel"
+          - "esclarecimento"
+        precedencia: 10
+
+      pag_proventos:
+        nome: "Página de proventos"
+        descricao: "Problema na página de proventos."
+        palavras_chave:
+          - "pag. de proventos"
+          - "pagina de proventos"
+          - "proventos"
+        precedencia: 10
+
+  # ============================================================
+  # SEGURANÇA (categoria priorizada)
+  # ============================================================
+  "Segurança":
+    motivos:
+      solicitacao_acesso:
+        nome: "Solicitação de acesso ao sistema"
+        descricao: "Solicitar acesso a um sistema."
+        palavras_chave:
+          - "solicita.*acesso"
+          - "acesso ao sistema"
+          - "liberação de acesso"
+          - "liberacao de acesso"
+        precedencia: 8
+
+      emissao_senha:
+        nome: "Emissão de senha"
+        descricao: "Solicitar emissão ou redefinição de senha."
+        palavras_chave:
+          - "emissão de senha"
+          - "emissao de senha"
+          - "senha"
+        precedencia: 8
+
+  # ============================================================
+  # ACESSOS SIGEPREV (categoria priorizada)
+  # ============================================================
+  "Acessos SIGEPREV":
+    motivos:
+      solicitacao_acesso:
+        nome: "Solicitação de acesso ao SIGEPREV"
+        descricao: "Solicitar acesso ao SIGEPREV."
+        palavras_chave:
+          - "acesso ao sigeprev"
+          - "solicita.*acesso"
+          - "liberação de acesso"
+          - "liberacao de acesso"
+        precedencia: 8
+
+      alteracao_perfil:
+        nome: "Alteração de perfil"
+        descricao: "Alterar perfil de usuário no SIGEPREV."
+        palavras_chave:
+          - "alteração de perfil"
+          - "alteracao de perfil"
+          - "mudança de perfil"
+          - "mudanca de perfil"
+        precedencia: 8
+
+      gerador_relatorios:
+        nome: "Acesso ao Gerador de Relatórios"
+        descricao: "Acesso ao módulo de gerador de relatórios."
+        palavras_chave:
+          - "gerador de relatórios"
+          - "gerador de relatorios"
+        precedencia: 10
+
+      tela_painel_recadastramento:
+        nome: "Tela painel de recadastramento"
+        descricao: "Acesso ao painel de recadastramento."
+        palavras_chave:
+          - "painel de recadastramento"
+          - "recadastramento"
+        precedencia: 10
+
+  # ============================================================
+  # PROCESSAMENTO DE ARQUIVOS (categoria priorizada)
+  # ============================================================
+  "Processamento de Arquivos":
+    motivos:
+      disponibilidade_arquivos:
+        nome: "Disponibilidade de arquivos"
+        descricao: "Arquivos não disponíveis para processamento."
+        palavras_chave:
+          - "disponibilidade de arquivos"
+          - "arquivos.*disponibil"
+          - "disponibilidade"
+        precedencia: 8
+
+      processamento_arrecadacao:
+        nome: "Processamento de arrecadação"
+        descricao: "Processamento de arquivos de arrecadação."
+        palavras_chave:
+          - "arrecadação"
+          - "arrecadacao"
+        precedencia: 10
+
+  # ============================================================
+  # OUTRAS CATEGORIAS VOLUMOSAS (regras básicas)
+  # ============================================================
+  "Folha de Pagamento":
+    motivos:
+      pr_trimestre:
+        nome: "PR – trimestre"
+        palavras_chave:
+          - "PR"
+          - "trimestre"
+        precedencia: 10
+      valor_beneficio:
+        nome: "Valor do benefício"
+        palavras_chave:
+          - "valor"
+          - "benefício"
+          - "beneficio"
+        precedencia: 10
+      reinclusao_pensionista:
+        nome: "Reinclusão de pensionista"
+        palavras_chave:
+          - "reinclusão"
+          - "reinclusao"
+          - "pensionista"
+        precedencia: 10
+
+  "Monitoramento Folha":
+    motivos:
+      monitoramento:
+        nome: "Monitoramento de folha"
+        palavras_chave:
+          - "monitoramento"
+          - "folha"
+        precedencia: 10
+
+  "Extinção":
+    motivos:
+      extincao:
+        nome: "Extinção"
+        palavras_chave:
+          - "extinção"
+          - "extincao"
+        precedencia: 10
+
+  "Relatório":
+    motivos:
+      relatorio:
+        nome: "Relatório"
+        palavras_chave:
+          - "relatório"
+          - "relatorio"
+        precedencia: 10
+
+  "Documentação":
+    motivos:
+      documento:
+        nome: "Documentação"
+        palavras_chave:
+          - "documento"
+          - "documentação"
+          - "documentacao"
+        precedencia: 10
+
+  "Aplicações Folha":
+    motivos:
+      aplicacao:
+        nome: "Aplicações folha"
+        palavras_chave:
+          - "aplicação"
+          - "aplicacao"
+          - "folha"
+        precedencia: 10
+
+  "VTC":
+    motivos:
+      vtc:
+        nome: "VTC"
+        palavras_chave:
+          - "vtc"
+        precedencia: 10
+
+  "CTC":
+    motivos:
+      ctc:
+        nome: "CTC"
+        palavras_chave:
+          - "ctc"
+        precedencia: 10
+
+# ============================================================
+# MOTIVOS TRANSVERSAIS
+# ============================================================
+motivos_transversais:
+  outros:
+    nome: "Outros / não classificado"
+    descricao: "Não corresponde a nenhum motivo do catálogo."
+    palavras_chave: []
+    requer_autorizacao: false
+    ativo: true
+    precedencia: 999
+
+  sem_texto_suficiente:
+    nome: "Sem texto suficiente"
+    descricao: "Ticket sem descrição/mensagem/solução para classificar."
+    palavras_chave: []
+    requer_autorizacao: false
+    ativo: true
+    precedencia: 999
+
+  divergência_categoria:
+    nome: "Divergência de categoria declarada vs. real"
+    descricao: "Categoria declarada diferente da inferida pelo texto."
+    palavras_chave: []
+    requer_autorizacao: false
+    ativo: true
+    precedencia: 999
+
+# ============================================================
+# AMBIGUEDADES A RESOLVER
+# ============================================================
+ambiguidades:
+  - motivo: "Correção / Erro / Retorno para determinado fluxo"
+    categoria: "Retorno de Tarefa"
+    problema: "Genéricos demais (17 tickets no DOCX só em 'Retorno para determinado fluxo'). Escondem subgrupos."
+    acao: "Rodar descoberta não supervisionada (Fase 5) nesses tickets e propor subgrupos."
+
+  - motivo: "Incorporar juros e correção (decisão judicial)"
+    categoria: "Retorno de Tarefa"
+    problema: "Aparece duplicado com e sem '(decisão judicial)' no DOCX."
+    acao: "Propor mesclar ou separar com justificativa."
+
+  - motivo: "Erro no cálculo de correção de saldo de inatividade – fluxo de extinção / Saldo de extinção divergente"
+    categoria: "Cadastro"
+    problema: "Parecem pertencer a Extinção, não Cadastro. Possível categoria declarada ≠ real."
+    acao: "Verificar se a categoria declarada está correta; considerar mover para Extinção."

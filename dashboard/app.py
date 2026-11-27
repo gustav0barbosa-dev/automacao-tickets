@@ -101,15 +101,20 @@ st.markdown(
 def slugify(nome):
     """
     Converte 'Tempo de Resposta' → 'tempo_resposta'
-    e 'Reincidência' → 'reincidencia'.
-    Remove acentos e palavras conectoras (de, da, do, das, dos, e).
+    e 'SLA + Reincidência' → 'sla_reincidencia'.
+    Remove acentos, palavras conectoras e caracteres especiais.
     """
+    import re
+
     # Remove acentos
     nfkd = unicodedata.normalize('NFKD', nome)
     sem_acento = ''.join(c for c in nfkd if not unicodedata.combining(c))
 
-    # Minúsculas e limpeza
+    # Minúsculas
     slug = sem_acento.lower().strip()
+
+    # Remove caracteres que não são letras, números ou espaços
+    slug = re.sub(r'[^a-z0-9\s]', '', slug)
 
     # Remove palavras conectoras
     stopwords = {'de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o'}

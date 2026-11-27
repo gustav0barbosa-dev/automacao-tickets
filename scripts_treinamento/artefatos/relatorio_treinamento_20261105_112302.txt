@@ -1,0 +1,136 @@
+======================================================================
+RELATÓRIO DE TREINAMENTO SUPERVISIONADO — FASE 3, ETAPA 4
+Gerado em: 2026-11-05T11:24:39.945272
+======================================================================
+
+DIVISÃO TEMPORAL: treino até 31/08/2026, teste 01/09/2026 → 31/10/2026
+
+COMPARAÇÃO DE MODELOS
+----------------------------------------------------------------------
+
+Modelo: TF-IDF + LinearSVC
+  Acurácia:       0.8353
+  Precisão Macro: 0.5120
+  Recall Macro:   0.5206
+  F1 Macro:       0.5106
+  Precisão Micro: 0.8353
+  Recall Micro:   0.8353
+  F1 Micro:       0.8353
+
+Modelo: Embeddings + LogisticRegression
+  Acurácia:       0.6588
+  Precisão Macro: 0.4037
+  Recall Macro:   0.3751
+  F1 Macro:       0.3689
+  Precisão Micro: 0.6588
+  Recall Micro:   0.6588
+  F1 Micro:       0.6588
+
+MÉTRICAS POR CLASSE (F1-score)
+----------------------------------------------------------------------
+
+--- TF-IDF + LinearSVC ---
+  acesso_oracle_datapump: F1=0.000, suporte=3.0
+  alteracao_cargo: F1=0.000, suporte=1.0
+  alteracao_conta_bancaria: F1=0.000, suporte=0.0
+  alteracao_data_obito: F1=0.857, suporte=3.0
+  aplicacao: F1=0.857, suporte=3.0
+  cadastro_agencia: F1=0.400, suporte=2.0
+  cadastro_cep: F1=1.000, suporte=1.0
+  cancelamento_conta_banco: F1=0.800, suporte=3.0
+  cargo_pensao: F1=0.522, suporte=9.0
+  conta_cadastrada_errada: F1=0.000, suporte=2.0
+  conta_corrente_dv_invalido: F1=1.000, suporte=4.0
+  correcao_data_nascimento: F1=1.000, suporte=1.0
+  correcao_saldo_extincao: F1=0.000, suporte=1.0
+  ctc: F1=0.947, suporte=10.0
+  data_ingresso_sou_sp: F1=0.000, suporte=2.0
+  disponibilidade_arquivos: F1=0.976, suporte=21.0
+  divergencia_cpf_minha_spprev: F1=0.000, suporte=1.0
+  documento: F1=0.750, suporte=5.0
+  erro_genérico: F1=0.000, suporte=1.0
+  exclusao_dependentes_ir: F1=0.364, suporte=6.0
+  extincao: F1=0.824, suporte=24.0
+  incorporar_juros_judicial: F1=0.000, suporte=2.0
+  nomenclatura_cargo_sou_sp: F1=1.000, suporte=1.0
+  pr_trimestre: F1=0.904, suporte=38.0
+  reenvio_simples: F1=0.952, suporte=11.0
+  relatorio: F1=0.913, suporte=21.0
+  retirada_dados_acumulado_duplicidade: F1=0.000, suporte=0.0
+  retorno_para_determinado_fluxo: F1=0.000, suporte=1.0
+  saldo_valor: F1=0.000, suporte=2.0
+  solicitacao_acesso: F1=0.870, suporte=21.0
+  status_finalizado_em_tramite: F1=0.000, suporte=1.0
+  tipo_numero_inscricao_invalido: F1=0.913, suporte=44.0
+  vtc: F1=1.000, suporte=10.0
+
+--- Embeddings + LogisticRegression ---
+  acesso_oracle_datapump: F1=0.400, suporte=3.0
+  alteracao_cargo: F1=0.000, suporte=1.0
+  alteracao_conta_bancaria: F1=0.000, suporte=0.0
+  alteracao_data_obito: F1=1.000, suporte=3.0
+  aplicacao: F1=0.444, suporte=3.0
+  cadastro_agencia: F1=0.667, suporte=2.0
+  cadastro_cep: F1=0.500, suporte=1.0
+  cancelamento_conta_banco: F1=0.800, suporte=3.0
+  cargo_pensao: F1=0.417, suporte=9.0
+  conta_cadastrada_errada: F1=0.500, suporte=2.0
+  conta_corrente_dv_invalido: F1=0.211, suporte=4.0
+  correcao_data_nascimento: F1=1.000, suporte=1.0
+  correcao_saldo_extincao: F1=0.000, suporte=1.0
+  ctc: F1=0.889, suporte=10.0
+  data_ingresso_sou_sp: F1=0.000, suporte=2.0
+  disponibilidade_arquivos: F1=1.000, suporte=21.0
+  divergencia_cpf_minha_spprev: F1=0.000, suporte=1.0
+  documento: F1=0.286, suporte=5.0
+  erro_genérico: F1=0.000, suporte=1.0
+  exclusao_dependentes_ir: F1=0.105, suporte=6.0
+  extincao: F1=0.735, suporte=24.0
+  incorporar_juros_judicial: F1=0.000, suporte=2.0
+  nomenclatura_cargo_sou_sp: F1=0.000, suporte=1.0
+  pr_trimestre: F1=0.632, suporte=38.0
+  recadastramento: F1=0.000, suporte=0.0
+  reenvio_simples: F1=0.778, suporte=11.0
+  relatorio: F1=0.789, suporte=21.0
+  retirada_dados_acumulado_duplicidade: F1=0.000, suporte=0.0
+  retorno_para_determinado_fluxo: F1=0.000, suporte=1.0
+  saldo_valor: F1=0.000, suporte=2.0
+  solicitacao_acesso: F1=0.850, suporte=21.0
+  status_finalizado_em_tramite: F1=0.000, suporte=1.0
+  tela_painel_recadastramento: F1=0.000, suporte=0.0
+  tipo_numero_inscricao_invalido: F1=0.850, suporte=44.0
+  valor_beneficio: F1=0.000, suporte=0.0
+  vtc: F1=0.429, suporte=10.0
+
+CURVA COBERTURA × PRECISÃO
+----------------------------------------------------------------------
+
+TF-IDF + LinearSVC:
+  limiar=0.50: cobertura=0.306, precisão=0.987, n_tickets=78
+  limiar=0.55: cobertura=0.235, precisão=0.983, n_tickets=60
+  limiar=0.60: cobertura=0.153, precisão=1.000, n_tickets=39
+  limiar=0.65: cobertura=0.114, precisão=1.000, n_tickets=29
+  limiar=0.70: cobertura=0.094, precisão=1.000, n_tickets=24
+  limiar=0.75: cobertura=0.075, precisão=1.000, n_tickets=19
+  limiar=0.80: cobertura=0.051, precisão=1.000, n_tickets=13
+  limiar=0.85: cobertura=0.035, precisão=1.000, n_tickets=9
+  limiar=0.90: cobertura=0.027, precisão=1.000, n_tickets=7
+  limiar=0.95: cobertura=0.020, precisão=1.000, n_tickets=5
+
+Embeddings + LogisticRegression:
+  limiar=0.50: cobertura=0.502, precisão=0.820, n_tickets=128
+  limiar=0.55: cobertura=0.424, precisão=0.861, n_tickets=108
+  limiar=0.60: cobertura=0.384, precisão=0.867, n_tickets=98
+  limiar=0.65: cobertura=0.345, precisão=0.875, n_tickets=88
+  limiar=0.70: cobertura=0.302, precisão=0.883, n_tickets=77
+  limiar=0.75: cobertura=0.231, precisão=0.915, n_tickets=59
+  limiar=0.80: cobertura=0.157, precisão=0.925, n_tickets=40
+  limiar=0.85: cobertura=0.114, precisão=0.931, n_tickets=29
+  limiar=0.90: cobertura=0.086, precisão=0.955, n_tickets=22
+  limiar=0.95: cobertura=0.059, precisão=1.000, n_tickets=15
+
+======================================================================
+OBSERVAÇÕES:
+- Rótulos usados são "rótulos fracos" (regras), não rótulos humanos.
+- Quando a amostra de validação humana for preenchida, substitua os rótulos.
+- Divisão temporal evita vazamento de informação entre treino e teste.

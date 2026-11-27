@@ -70,6 +70,7 @@ data_resolvido	DATETIME	Data da resolução
 data_1_resolvido	DATETIME	Data do 1º atendimento
 snapshot_data	DATE	Última atualização do snapshot
 enriquecido	INTEGER	0=pendente, 1=enriquecido, 3=falhou
+enriquecido_em	DATETIME	Quando o ticket foi enriquecido (base para reprocessar alterações)
 criado_em	DATETIME	Timestamp de criação do registro
 atualizado_em	DATETIME	Timestamp de última atualização
 3.2 Colunas Adicionadas (Sprint 1)
